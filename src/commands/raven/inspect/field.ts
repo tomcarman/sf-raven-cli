@@ -3,7 +3,7 @@ import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import { canonicalRefKey, deepSearchReferences, queryInboundOnly, type DependencyRef, type ToolingInspectConnection } from '../../../shared/inspect.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.inspect.field');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.inspect.field');
 
 type CustomFieldRecord = { Id: string };
 

@@ -3,7 +3,7 @@ import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import { queryDependencies, resolveComponentId, type DependencyRef, type ToolingInspectConnection } from '../../../shared/inspect.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.inspect.dependencies');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.inspect.dependencies');
 
 export type RavenInspectDependenciesResult = {
   component: string;

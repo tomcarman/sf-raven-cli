@@ -3,7 +3,7 @@ import { Messages } from '@salesforce/core';
 import { getExistingPackageDirectoryPaths, getMetadataPaths, retrieveSourceDirs, selectItems } from '../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.pull');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.pull');
 
 export type RavenPullResult = {
   sourceDirs: string[];

@@ -4,7 +4,7 @@ import { Messages } from '@salesforce/core';
 import { getEffectiveRemoteMetadataTypes, getOrgOnlyMetadataNamesForType, isPromptForceCloseError, retrieveMetadataNames, selectItems } from '../../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.pull.remote');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.pull.remote');
 
 const orgOnlyPrefix = '☁  ';
 
@@ -115,4 +115,3 @@ const selectMetadataType = async (metadataTypes: string[]): Promise<string | und
     throw error;
   }
 };
-

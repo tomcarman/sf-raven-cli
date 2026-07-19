@@ -1,5 +1,5 @@
 {
-  "name": "sf-raven",
+  "name": "sf-raven-cli",
   "description": "A custom sf plugin built by @tomcarman",
   "version": "1.4.0",
   "dependencies": {
@@ -13,8 +13,7 @@
     "chalk": "^4.1.2",
     "dayjs": "^1.11.20",
     "jsforce": "^3.3.1",
-    "node-emoji": "^2.1.3",
-    "pinst": "^3.0.0"
+    "node-emoji": "^2.1.3"
   },
   "private": false,
   "devDependencies": {
@@ -26,6 +25,7 @@
     "eslint-plugin-sf-plugin": "^1.20.33",
     "husky": "^9.1.1",
     "oclif": "^4.23.7",
+    "pinst": "^3.0.0",
     "shx": "0.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",

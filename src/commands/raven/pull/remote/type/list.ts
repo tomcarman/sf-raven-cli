@@ -3,7 +3,7 @@ import { SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import { getEffectiveRemoteMetadataTypes } from '../../../../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.pull.remote.type.list');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.pull.remote.type.list');
 
 export type RavenPullRemoteTypeListResult = {
   metadataTypes: string[];

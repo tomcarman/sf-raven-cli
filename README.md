@@ -4,7 +4,7 @@
     <b>Salesforce CLI plugin by @tomcarman</b>
     <br/><br/>
   
-  [![NPM](https://img.shields.io/npm/v/sf-raven.svg?label=sf-raven)](https://www.npmjs.com/package/sf-raven) [![Downloads/week](https://img.shields.io/npm/dw/sf-raven.svg)](https://npmjs.org/package/sf-raven) [![License](https://img.shields.io/badge/License-BSD%203--Clause-brightgreen.svg)](https://raw.githubusercontent.com/tomcarman/sf-raven-cli/main/LICENSE.txt)
+  [![NPM](https://img.shields.io/npm/v/sf-raven-cli.svg?label=sf-raven-cli)](https://www.npmjs.com/package/sf-raven-cli) [![Downloads/week](https://img.shields.io/npm/dw/sf-raven-cli.svg)](https://npmjs.org/package/sf-raven-cli) [![License](https://img.shields.io/badge/License-BSD%203--Clause-brightgreen.svg)](https://raw.githubusercontent.com/tomcarman/sf-raven-cli/main/LICENSE.txt)
 
 </div>
 </br>
@@ -104,9 +104,16 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 
 Assuming you already have the [sf cli](https://developer.salesforce.com/tools/salesforcecli) installed, the plugin can be installed by running:
 
-`sf plugins install sf-raven`
+`sf plugins install sf-raven-cli`
 
 Note: You'll be prompted that this is not officially code-signed by Salesforce - like any custom plugin. You can just accept this when prompted, or alternatively you can [whitelist it](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_allowlist.htm)
+
+If you previously installed the package as `sf-raven`, migrate to the renamed package with:
+
+```sh
+sf plugins uninstall sf-raven
+sf plugins install sf-raven-cli
+```
 
 ### Updating the plugin
 

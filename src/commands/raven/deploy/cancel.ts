@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import { isPromptForceCloseError } from '../../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.deploy.cancel');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.deploy.cancel');
 
 export type DeployCancelResult = {
   cancelled: boolean;

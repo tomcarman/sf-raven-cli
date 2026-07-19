@@ -3,7 +3,7 @@ import { Messages } from '@salesforce/core';
 import dayjs from 'dayjs';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.audit.display');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.audit.display');
 
 export type AuditDisplayResult = {
   result: object;

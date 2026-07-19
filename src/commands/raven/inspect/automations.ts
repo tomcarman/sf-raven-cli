@@ -3,7 +3,7 @@ import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.inspect.automations');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.inspect.automations');
 
 type ApexTriggerRecord = {
   Name: string;

@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.apex.log');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.apex.log');
 
 type ToolingQueryResult<T> = { records: T[] };
 type TraceFlagRecord = { Id: string; ExpirationDate: string };

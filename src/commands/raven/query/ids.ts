@@ -3,7 +3,7 @@ import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.query.ids');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.ids');
 
 const idPattern = /^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/;
 const idsPlaceholder = '{ids}';

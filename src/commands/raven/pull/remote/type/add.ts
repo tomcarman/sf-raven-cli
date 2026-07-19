@@ -3,7 +3,7 @@ import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import { addRemoteMetadataTypes, getEffectiveRemoteMetadataTypes, listOrgMetadataTypes, selectItems } from '../../../../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.pull.remote.type.add');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.pull.remote.type.add');
 
 export type RavenPullRemoteTypeAddResult = {
   addedMetadataTypes: string[];

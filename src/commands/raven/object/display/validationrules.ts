@@ -3,7 +3,7 @@ import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('sf-raven', 'raven.object.display.validationrules');
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.object.display.validationrules');
 
 type ValidationRuleRecord = {
   Id: string;
