@@ -4,6 +4,14 @@ import type { JsonMap } from '@salesforce/ts-types';
 import chalk from 'chalk';
 import dayjs from 'dayjs';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
+import {
+  buildErrorEvent,
+  buildLogEvent,
+  buildStatusEvent,
+  serializeEvent,
+  type ApexLogRecordFields,
+  type StreamEvent,
+} from '../../../shared/apexLogEvents.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.apex.log');
@@ -28,15 +36,11 @@ type ToolingConnection = {
 type LogNotification = {
   sobject: {
     Id: string;
-    CreatedDate: string;
+    CreatedDate?: string;
   };
 };
 
-type ApexLogRecord = {
-  Operation: string;
-  DurationMilliseconds: number;
-  Status: string;
-};
+type TraceFlagStatus = { state: 'active' | 'created'; expiry: string } | { state: 'declined' };
 
 export type RavenApexLogResult = {
   logsReceived: number;
@@ -68,10 +72,14 @@ export default class RavenApexLog extends SfCommand<RavenApexLogResult> {
       summary: messages.getMessage('flags.no-trace.summary'),
       default: false,
     }),
+    ndjson: Flags.boolean({
+      summary: messages.getMessage('flags.ndjson.summary'),
+      default: false,
+    }),
     timeout: Flags.integer({
       summary: messages.getMessage('flags.timeout.summary'),
       char: 't',
-      min: 1,
+      min: 3,
       max: 30,
       default: 3,
     }),
@@ -79,7 +87,11 @@ export default class RavenApexLog extends SfCommand<RavenApexLogResult> {
 
   public async run(): Promise<RavenApexLogResult> {
     const { flags } = await this.parse(RavenApexLog);
-    const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
+    const ndjson = flags.ndjson;
+    const ux = new Ux({ jsonEnabled: this.jsonEnabled() || ndjson });
+    const emit = ndjson ? writeEventLine : undefined;
+
+    let logsReceived = 0;
 
     const org = flags['target-org'];
 
@@ -97,10 +109,22 @@ export default class RavenApexLog extends SfCommand<RavenApexLogResult> {
     const userId = await resolveUserId(connection, username);
 
     if (!flags['no-trace']) {
-      await ensureTraceFlag(connection, userId, ux, this);
+      const confirmCreate = ndjson
+        ? (): Promise<boolean> => Promise.resolve(true)
+        : (): Promise<boolean> =>
+            this.confirm({ message: messages.getMessage('prompt.createTrace'), defaultAnswer: true });
+
+      const trace = await ensureTraceFlag(connection, userId, confirmCreate);
+
+      if (trace.state === 'active') {
+        ux.log(messages.getMessage('info.traceActive', [dayjs(trace.expiry).format('HH:mm:ss')]));
+        emit?.(buildStatusEvent('traceActive', trace.expiry));
+      } else if (trace.state === 'created') {
+        ux.log(messages.getMessage('info.traceCreated', [dayjs(trace.expiry).format('HH:mm:ss')]));
+        emit?.(buildStatusEvent('traceCreated', trace.expiry));
+      }
     }
 
-    let logsReceived = 0;
     const seenLogIds = new Set<string>();
 
     const streamProcessor = (message: JsonMap): { completed: boolean } => {
@@ -111,9 +135,17 @@ export default class RavenApexLog extends SfCommand<RavenApexLogResult> {
         seenLogIds.add(id);
         setTimeout(() => seenLogIds.delete(id), 30_000);
 
-        void handleLogNotification(notification, connection, flags.filter, flags.raw, ux).then(() => {
-          logsReceived++;
-        });
+        void handleLogNotification(notification, connection, flags.filter, flags.raw, ux, emit)
+          .then(() => {
+            logsReceived++;
+          })
+          .catch((error: unknown) => {
+            if (emit == null) {
+              throw error;
+            }
+
+            emit(buildErrorEvent(error instanceof Error ? error.message : String(error)));
+          });
       }
 
       return { completed: false };
@@ -135,6 +167,7 @@ export default class RavenApexLog extends SfCommand<RavenApexLogResult> {
     client.replay(-1);
     ux.spinner.stop();
 
+    emit?.(buildStatusEvent('connected'));
     ux.log(messages.getMessage('info.streaming', [username]));
 
     try {
@@ -142,6 +175,7 @@ export default class RavenApexLog extends SfCommand<RavenApexLogResult> {
     } catch (error) {
       if (isSubscribeTimeoutError(error)) {
         ux.log(messages.getMessage('info.timeout'));
+        emit?.(buildStatusEvent('timeout'));
       } else {
         throw error;
       }
@@ -149,7 +183,20 @@ export default class RavenApexLog extends SfCommand<RavenApexLogResult> {
 
     return { logsReceived };
   }
+
+  protected async catch(error: Error): Promise<never> {
+    if (this.argv.includes('--ndjson')) {
+      writeEventLine(buildErrorEvent(error.message));
+      return this.exit(1);
+    }
+
+    return super.catch(error);
+  }
 }
+
+const writeEventLine = (event: StreamEvent): void => {
+  process.stdout.write(`${serializeEvent(event)}\n`);
+};
 
 const resolveUserId = async (connection: ToolingConnection, username: string): Promise<string> => {
   const result = await connection.query<UserRecord>(
@@ -166,9 +213,8 @@ const resolveUserId = async (connection: ToolingConnection, username: string): P
 const ensureTraceFlag = async (
   connection: ToolingConnection,
   userId: string,
-  ux: Ux,
-  command: SfCommand<RavenApexLogResult>
-): Promise<void> => {
+  confirmCreate: () => Promise<boolean>
+): Promise<TraceFlagStatus> => {
   const now = new Date().toISOString();
 
   const existing = await connection.tooling.query<TraceFlagRecord>(
@@ -176,18 +222,11 @@ const ensureTraceFlag = async (
   );
 
   if (existing.records.length > 0) {
-    const expiry = dayjs(existing.records[0].ExpirationDate).format('HH:mm:ss');
-    ux.log(messages.getMessage('info.traceActive', [expiry]));
-    return;
+    return { state: 'active', expiry: existing.records[0].ExpirationDate };
   }
 
-  const confirmed = await command.confirm({
-    message: messages.getMessage('prompt.createTrace'),
-    defaultAnswer: true,
-  });
-
-  if (!confirmed) {
-    return;
+  if (!(await confirmCreate())) {
+    return { state: 'declined' };
   }
 
   const debugLevelId = await ensureDebugLevel(connection);
@@ -201,7 +240,7 @@ const ensureTraceFlag = async (
     ExpirationDate: expiry,
   });
 
-  ux.log(messages.getMessage('info.traceCreated', [dayjs(expiry).format('HH:mm:ss')]));
+  return { state: 'created', expiry };
 };
 
 const ensureDebugLevel = async (connection: ToolingConnection): Promise<string> => {
@@ -236,13 +275,24 @@ const handleLogNotification = async (
   connection: ToolingConnection,
   filter: string | undefined,
   raw: boolean,
-  ux: Ux
+  ux: Ux,
+  emit?: (event: StreamEvent) => void
 ): Promise<void> => {
   const { Id, CreatedDate } = notification.sobject;
 
   const [body, record] = await Promise.all([fetchLogBody(connection, Id), fetchLogRecord(connection, Id)]);
 
-  const header = formatLogHeader(record?.Operation, CreatedDate, record?.DurationMilliseconds, record?.Status);
+  if (emit != null) {
+    emit(buildLogEvent(Id, CreatedDate, record, body));
+    return;
+  }
+
+  const header = formatLogHeader(
+    record?.Operation,
+    CreatedDate ?? record?.StartTime,
+    record?.DurationMilliseconds,
+    record?.Status
+  );
 
   if (raw) {
     ux.log(header);
@@ -274,9 +324,9 @@ const fetchLogBody = async (connection: ToolingConnection, logId: string): Promi
   return response.text();
 };
 
-const fetchLogRecord = async (connection: ToolingConnection, logId: string): Promise<ApexLogRecord | undefined> => {
-  const result = await connection.tooling.query<ApexLogRecord>(
-    `SELECT Operation, DurationMilliseconds, Status FROM ApexLog WHERE Id = '${logId}' LIMIT 1`
+const fetchLogRecord = async (connection: ToolingConnection, logId: string): Promise<ApexLogRecordFields | undefined> => {
+  const result = await connection.tooling.query<ApexLogRecordFields>(
+    `SELECT Operation, DurationMilliseconds, Status, StartTime FROM ApexLog WHERE Id = '${logId}' LIMIT 1`
   );
 
   return result.records[0];
@@ -320,7 +370,12 @@ const formatLevel = (level: string): string => {
   }
 };
 
-const formatLogHeader = (operation: string | undefined, createdDate: string, duration: number | undefined, status: string | undefined): string => {
+const formatLogHeader = (
+  operation: string | undefined,
+  createdDate: string | undefined,
+  duration: number | undefined,
+  status: string | undefined
+): string => {
   const time = dayjs(createdDate).format('HH:mm:ss');
   const op = operation ?? 'Log';
   const durationStr = duration != null ? `  ${duration}ms` : '';

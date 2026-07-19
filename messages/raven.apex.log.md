@@ -50,9 +50,13 @@ Print the full log body instead of filtering to USER_DEBUG and exception lines.
 
 Skip trace flag check. Use when managing trace flags externally.
 
+# flags.ndjson.summary
+
+Stream machine-readable NDJSON events, one JSON object per line. Implies no prompts, no spinner, and no colour; the trace flag is created automatically.
+
 # flags.timeout.summary
 
-Minutes to listen before exiting (1-30). Default: 3.
+Minutes to listen before exiting (3-30, the platform minimum is 3). Default: 3.
 
 # info.connecting
 
