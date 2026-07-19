@@ -52,10 +52,13 @@
     "/oclif.manifest.json",
     "/oclif.lock"
   ],
-  "homepage": "https://github.com/tomcarman/sf-raven",
+  "homepage": "https://github.com/tomcarman/sf-raven-cli",
+  "bugs": {
+    "url": "https://github.com/tomcarman/sf-raven-cli/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tomcarman/sf-raven.git"
+    "url": "git+https://github.com/tomcarman/sf-raven-cli.git"
   },
   "keywords": [
     "force",

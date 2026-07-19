@@ -4,7 +4,7 @@
     <b>Salesforce CLI plugin by @tomcarman</b>
     <br/><br/>
   
-  [![NPM](https://img.shields.io/npm/v/sf-raven.svg?label=sf-raven)](https://www.npmjs.com/package/sf-raven) [![Downloads/week](https://img.shields.io/npm/dw/sf-raven.svg)](https://npmjs.org/package/sf-raven) [![License](https://img.shields.io/badge/License-BSD%203--Clause-brightgreen.svg)](https://raw.githubusercontent.com/salesforcecli/sf-raven/main/LICENSE.txt)
+  [![NPM](https://img.shields.io/npm/v/sf-raven.svg?label=sf-raven)](https://www.npmjs.com/package/sf-raven) [![Downloads/week](https://img.shields.io/npm/dw/sf-raven.svg)](https://npmjs.org/package/sf-raven) [![License](https://img.shields.io/badge/License-BSD%203--Clause-brightgreen.svg)](https://raw.githubusercontent.com/tomcarman/sf-raven-cli/main/LICENSE.txt)
 
 </div>
 </br>
@@ -117,7 +117,7 @@ The plugin can be updated to the latest version using
 ### Install from source
 
 1. Install the [SDFX CLI](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_install_cli.htm)
-2. Clone the repository: `git clone git@github.com:tomcarman/sf-raven.git`
+2. Clone the repository: `git clone git@github.com:tomcarman/sf-raven-cli.git`
 3. Install npm modules: `npm install`
 4. Link the plugin: `sf plugins link .`
 
