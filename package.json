@@ -1,7 +1,7 @@
 {
   "name": "sf-raven-cli",
   "description": "A custom sf plugin built by @tomcarman",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "dependencies": {
     "@inquirer/select": "2.4.2",
     "@oclif/core": "^4.0.14",
