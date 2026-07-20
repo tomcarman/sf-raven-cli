@@ -1,0 +1,540 @@
+{
+  "status": 0,
+  "result": {
+    "source": "org",
+    "types": [
+      {
+        "name": "ActionLauncherItemDef"
+      },
+      {
+        "name": "ActionLinkGroupTemplate"
+      },
+      {
+        "name": "AnalyticSnapshot"
+      },
+      {
+        "name": "AnimationRule"
+      },
+      {
+        "name": "ApexClass"
+      },
+      {
+        "name": "ApexComponent"
+      },
+      {
+        "name": "ApexEmailNotifications"
+      },
+      {
+        "name": "ApexPage"
+      },
+      {
+        "name": "ApexTestSuite"
+      },
+      {
+        "name": "ApexTrigger"
+      },
+      {
+        "name": "ApiNamedQuery"
+      },
+      {
+        "name": "AppFrameworkTemplateBundle"
+      },
+      {
+        "name": "AppMenu"
+      },
+      {
+        "name": "ApprovalProcess"
+      },
+      {
+        "name": "AssignmentRules"
+      },
+      {
+        "name": "AuraDefinitionBundle"
+      },
+      {
+        "name": "AuthProvider"
+      },
+      {
+        "name": "AutoResponseRules"
+      },
+      {
+        "name": "BlacklistedConsumer"
+      },
+      {
+        "name": "BrandingSet"
+      },
+      {
+        "name": "BriefcaseDefinition"
+      },
+      {
+        "name": "CallCenter"
+      },
+      {
+        "name": "CallCoachingMediaProvider"
+      },
+      {
+        "name": "CanvasMetadata"
+      },
+      {
+        "name": "CatalogedApi"
+      },
+      {
+        "name": "CatalogedApiArtifactVersionInfo"
+      },
+      {
+        "name": "CatalogedApiVersion"
+      },
+      {
+        "name": "Certificate"
+      },
+      {
+        "name": "ChannelLayout"
+      },
+      {
+        "name": "ChatterExtension"
+      },
+      {
+        "name": "CleanDataService"
+      },
+      {
+        "name": "Community"
+      },
+      {
+        "name": "ConnectedApp"
+      },
+      {
+        "name": "ContentAsset"
+      },
+      {
+        "name": "ContentTypeBundle"
+      },
+      {
+        "name": "CorsWhitelistOrigin"
+      },
+      {
+        "name": "CspTrustedSite"
+      },
+      {
+        "name": "CustomApplication"
+      },
+      {
+        "name": "CustomApplicationComponent"
+      },
+      {
+        "name": "CustomFeedFilter"
+      },
+      {
+        "name": "CustomHelpMenuSection"
+      },
+      {
+        "name": "CustomIndex"
+      },
+      {
+        "name": "CustomLabels"
+      },
+      {
+        "name": "CustomMetadata"
+      },
+      {
+        "name": "CustomNotificationType"
+      },
+      {
+        "name": "CustomObject"
+      },
+      {
+        "name": "CustomObjectTranslation"
+      },
+      {
+        "name": "CustomPageWebLink"
+      },
+      {
+        "name": "CustomPermission"
+      },
+      {
+        "name": "CustomSite"
+      },
+      {
+        "name": "CustomTab"
+      },
+      {
+        "name": "Dashboard"
+      },
+      {
+        "name": "DataCategoryGroup"
+      },
+      {
+        "name": "DataWeaveResource"
+      },
+      {
+        "name": "DelegateGroup"
+      },
+      {
+        "name": "DigitalExperienceBundle"
+      },
+      {
+        "name": "Document"
+      },
+      {
+        "name": "DuplicateRule"
+      },
+      {
+        "name": "EclairGeoData"
+      },
+      {
+        "name": "EmailServicesFunction"
+      },
+      {
+        "name": "EmailTemplate"
+      },
+      {
+        "name": "EmbeddedServiceBranding"
+      },
+      {
+        "name": "EmbeddedServiceConfig"
+      },
+      {
+        "name": "EmbeddedServiceFlowConfig"
+      },
+      {
+        "name": "EmbeddedServiceMenuSettings"
+      },
+      {
+        "name": "EscalationRules"
+      },
+      {
+        "name": "EventRelayConfig"
+      },
+      {
+        "name": "ExperienceContainer"
+      },
+      {
+        "name": "ExperiencePropertyTypeBundle"
+      },
+      {
+        "name": "ExternalAuthIdentityProvider"
+      },
+      {
+        "name": "ExternalClientApplication"
+      },
+      {
+        "name": "ExternalCredential"
+      },
+      {
+        "name": "ExternalDataSource"
+      },
+      {
+        "name": "ExternalServiceRegistration"
+      },
+      {
+        "name": "ExtlClntAppCanvasSettings"
+      },
+      {
+        "name": "ExtlClntAppConfigurablePolicies"
+      },
+      {
+        "name": "ExtlClntAppGlobalOauthSettings"
+      },
+      {
+        "name": "ExtlClntAppMobileConfigurablePolicies"
+      },
+      {
+        "name": "ExtlClntAppMobileSettings"
+      },
+      {
+        "name": "ExtlClntAppNotificationSettings"
+      },
+      {
+        "name": "ExtlClntAppOauthConfigurablePolicies"
+      },
+      {
+        "name": "ExtlClntAppOauthSecuritySettings"
+      },
+      {
+        "name": "ExtlClntAppOauthSettings"
+      },
+      {
+        "name": "ExtlClntAppPushConfigurablePolicies"
+      },
+      {
+        "name": "ExtlClntAppPushSettings"
+      },
+      {
+        "name": "ExtlClntAppSamlConfigurablePolicies"
+      },
+      {
+        "name": "FieldRestrictionRule"
+      },
+      {
+        "name": "FlexiPage"
+      },
+      {
+        "name": "Flow"
+      },
+      {
+        "name": "FlowCategory"
+      },
+      {
+        "name": "FlowDefinition"
+      },
+      {
+        "name": "FlowTest"
+      },
+      {
+        "name": "FlowValueMap"
+      },
+      {
+        "name": "GlobalValueSet"
+      },
+      {
+        "name": "GlobalValueSetTranslation"
+      },
+      {
+        "name": "Group"
+      },
+      {
+        "name": "HomePageComponent"
+      },
+      {
+        "name": "HomePageLayout"
+      },
+      {
+        "name": "IframeWhiteListUrlSettings"
+      },
+      {
+        "name": "InboundNetworkConnection"
+      },
+      {
+        "name": "InstalledPackage"
+      },
+      {
+        "name": "InvocableActionExtension"
+      },
+      {
+        "name": "IPAddressRange"
+      },
+      {
+        "name": "Layout"
+      },
+      {
+        "name": "LeadConvertSettings"
+      },
+      {
+        "name": "Letterhead"
+      },
+      {
+        "name": "LightningBolt"
+      },
+      {
+        "name": "LightningComponentBundle"
+      },
+      {
+        "name": "LightningExperienceTheme"
+      },
+      {
+        "name": "LightningMessageChannel"
+      },
+      {
+        "name": "LightningOnboardingConfig"
+      },
+      {
+        "name": "LightningTypeBundle"
+      },
+      {
+        "name": "ManagedContentType"
+      },
+      {
+        "name": "ManagedEventSubscription"
+      },
+      {
+        "name": "MatchingRules"
+      },
+      {
+        "name": "McpServerDefinition"
+      },
+      {
+        "name": "MobileApplicationDetail"
+      },
+      {
+        "name": "MutingPermissionSet"
+      },
+      {
+        "name": "MyDomainDiscoverableLogin"
+      },
+      {
+        "name": "NamedCredential"
+      },
+      {
+        "name": "NetworkBranding"
+      },
+      {
+        "name": "NotificationTypeConfig"
+      },
+      {
+        "name": "OauthCustomScope"
+      },
+      {
+        "name": "OauthTokenExchangeHandler"
+      },
+      {
+        "name": "OutboundNetworkConnection"
+      },
+      {
+        "name": "PathAssistant"
+      },
+      {
+        "name": "PermissionSet"
+      },
+      {
+        "name": "PermissionSetGroup"
+      },
+      {
+        "name": "PermissionSetLicenseDefinition"
+      },
+      {
+        "name": "PersonAccountOwnerPowerUser"
+      },
+      {
+        "name": "PlatformCachePartition"
+      },
+      {
+        "name": "PlatformEventChannel"
+      },
+      {
+        "name": "PlatformEventChannelMember"
+      },
+      {
+        "name": "PlatformEventMigration"
+      },
+      {
+        "name": "PlatformEventSubscriberConfig"
+      },
+      {
+        "name": "Portal"
+      },
+      {
+        "name": "PortalDelegablePermissionSet"
+      },
+      {
+        "name": "PostTemplate"
+      },
+      {
+        "name": "ProcessFlowMigration"
+      },
+      {
+        "name": "Profile"
+      },
+      {
+        "name": "ProfilePasswordPolicy"
+      },
+      {
+        "name": "ProfileSessionSetting"
+      },
+      {
+        "name": "Prompt"
+      },
+      {
+        "name": "Queue"
+      },
+      {
+        "name": "QuickAction"
+      },
+      {
+        "name": "RecommendationStrategy"
+      },
+      {
+        "name": "RecordActionDeployment"
+      },
+      {
+        "name": "RedirectWhitelistUrl"
+      },
+      {
+        "name": "RemoteSiteSetting"
+      },
+      {
+        "name": "Report"
+      },
+      {
+        "name": "ReportType"
+      },
+      {
+        "name": "RestrictionRule"
+      },
+      {
+        "name": "Role"
+      },
+      {
+        "name": "SamlSsoConfig"
+      },
+      {
+        "name": "Scontrol"
+      },
+      {
+        "name": "SearchCustomization"
+      },
+      {
+        "name": "SearchOrgWideObjectConfig"
+      },
+      {
+        "name": "Settings"
+      },
+      {
+        "name": "SharingRules"
+      },
+      {
+        "name": "SharingSet"
+      },
+      {
+        "name": "SiteDotCom"
+      },
+      {
+        "name": "StandardValueSet"
+      },
+      {
+        "name": "StandardValueSetTranslation"
+      },
+      {
+        "name": "StaticResource"
+      },
+      {
+        "name": "SynonymDictionary"
+      },
+      {
+        "name": "TagSet"
+      },
+      {
+        "name": "Territory2"
+      },
+      {
+        "name": "Territory2Model"
+      },
+      {
+        "name": "Territory2Rule"
+      },
+      {
+        "name": "Territory2Type"
+      },
+      {
+        "name": "TopicsForObjects"
+      },
+      {
+        "name": "TransactionSecurityPolicy"
+      },
+      {
+        "name": "UIBundle"
+      },
+      {
+        "name": "UiFormatSpecificationSet"
+      },
+      {
+        "name": "UserProvisioningConfig"
+      },
+      {
+        "name": "WaveAnalyticAssetCollection"
+      },
+      {
+        "name": "Workflow"
+      }
+    ]
+  },
+  "warnings": []
+}

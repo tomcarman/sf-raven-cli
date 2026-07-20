@@ -9,6 +9,30 @@ export type SelectedMetadata = {
   metadataNames: string[];
 };
 
+export type PullListSource = 'configured' | 'local' | 'org';
+
+export type PullListType = {
+  name: string;
+  localCount?: number;
+};
+
+export type PullListTypesResult = {
+  source: PullListSource;
+  types: PullListType[];
+};
+
+export type PullListComponentStatus = 'local' | 'remote' | 'both';
+
+export type PullListComponent = {
+  name: string;
+  status: PullListComponentStatus;
+};
+
+export type PullListComponentsResult = {
+  metadataType: string;
+  components: PullListComponent[];
+};
+
 type SfdxProject = {
   packageDirectories?: Array<{
     path?: string;
@@ -136,6 +160,50 @@ export const listOrgMetadataTypes = async (targetOrg?: string): Promise<string[]
   return sortValues(metadataTypes.map(getMetadataTypeName).filter((metadataType): metadataType is string => metadataType != null));
 };
 
+export const getTypeInventory = async (projectRoot: string): Promise<PullListTypesResult> => {
+  const configuredMetadataTypes = await getConfiguredRemoteMetadataTypes(projectRoot);
+  const localCounts = getLocalMetadataTypeCounts(projectRoot);
+
+  if (configuredMetadataTypes !== undefined) {
+    return {
+      source: 'configured',
+      types: toTypesWithLocalCounts(configuredMetadataTypes, localCounts),
+    };
+  }
+
+  return {
+    source: 'local',
+    types: toTypesWithLocalCounts(sortValues(localCounts.keys()), localCounts),
+  };
+};
+
+export const getOrgTypeInventory = async (targetOrg?: string): Promise<PullListTypesResult> => ({
+  source: 'org',
+  types: (await listOrgMetadataTypes(targetOrg)).map((name) => ({ name })),
+});
+
+export const getComponentInventory = async (
+  projectRoot: string,
+  metadataType: string,
+  targetOrg?: string
+): Promise<PullListComponentsResult> => {
+  const localFullNames = getLocalMetadataFullNames(projectRoot, metadataType);
+  const orgFullNames = await listOrgMetadataFullNames(metadataType, targetOrg);
+
+  const componentStatus = (name: string): PullListComponentStatus => {
+    if (localFullNames.has(name) && orgFullNames.has(name)) {
+      return 'both';
+    }
+
+    return localFullNames.has(name) ? 'local' : 'remote';
+  };
+
+  return {
+    metadataType,
+    components: sortValues([...localFullNames, ...orgFullNames]).map((name) => ({ name, status: componentStatus(name) })),
+  };
+};
+
 export const getOrgOnlyMetadataNamesForType = async (
   projectRoot: string,
   metadataType: string,
@@ -143,14 +211,9 @@ export const getOrgOnlyMetadataNamesForType = async (
 ): Promise<string[]> => {
   const localMetadataNames = getLocalMetadataNames(projectRoot, metadataType);
   const orgMetadataNames = new Set<string>();
-  const components = await listOrgMetadata(metadataType, targetOrg);
 
-  for (const component of components) {
-    if (component.fullName == null || component.fullName.length === 0) {
-      continue;
-    }
-
-    const metadataName = formatMetadataName(metadataType, component.fullName);
+  for (const fullName of await listOrgMetadataFullNames(metadataType, targetOrg)) {
+    const metadataName = formatMetadataName(metadataType, fullName);
 
     if (!localMetadataNames.has(metadataName)) {
       orgMetadataNames.add(metadataName);
@@ -186,6 +249,21 @@ export const retrieveMetadataNames = async (metadataNames: string[], targetOrg?:
   }
 
   return runRetrieveCommand(args);
+};
+
+const toTypesWithLocalCounts = (names: string[], localCounts: Map<string, number>): PullListType[] =>
+  names.map((name) => ({ name, localCount: localCounts.get(name) ?? 0 }));
+
+const listOrgMetadataFullNames = async (metadataType: string, targetOrg?: string): Promise<Set<string>> => {
+  const fullNames = new Set<string>();
+
+  for (const component of await listOrgMetadata(metadataType, targetOrg)) {
+    if (component.fullName != null && component.fullName.length > 0) {
+      fullNames.add(component.fullName);
+    }
+  }
+
+  return fullNames;
 };
 
 const listOrgMetadata = async (metadataType: string, targetOrg?: string): Promise<MetadataListComponent[]> => {
@@ -332,16 +410,29 @@ const getLocalMetadataTypes = (projectRoot: string): string[] => {
   return sortValues(metadataTypes);
 };
 
-const getLocalMetadataNames = (projectRoot: string, metadataType: string): Set<string> => {
-  const localMetadataNames = new Set<string>();
+const getLocalMetadataNames = (projectRoot: string, metadataType: string): Set<string> =>
+  new Set(Array.from(getLocalMetadataFullNames(projectRoot, metadataType)).map((fullName) => formatMetadataName(metadataType, fullName)));
+
+const getLocalMetadataFullNames = (projectRoot: string, metadataType: string): Set<string> => {
+  const localMetadataFullNames = new Set<string>();
 
   for (const component of getLocalMetadataComponents(projectRoot)) {
     if (component.type.name === metadataType && component.fullName.length > 0) {
-      localMetadataNames.add(formatMetadataName(component.type.name, component.fullName));
+      localMetadataFullNames.add(component.fullName);
     }
   }
 
-  return localMetadataNames;
+  return localMetadataFullNames;
+};
+
+const getLocalMetadataTypeCounts = (projectRoot: string): Map<string, number> => {
+  const localCounts = new Map<string, number>();
+
+  for (const component of getLocalMetadataComponents(projectRoot)) {
+    localCounts.set(component.type.name, (localCounts.get(component.type.name) ?? 0) + 1);
+  }
+
+  return localCounts;
 };
 
 const formatMetadataName = (metadataType: string, fullName: string): string => `${metadataType}:${fullName}`;

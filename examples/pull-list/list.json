@@ -1,0 +1,13 @@
+{
+  "status": 0,
+  "result": {
+    "source": "local",
+    "types": [
+      {
+        "name": "ApexClass",
+        "localCount": 3
+      }
+    ]
+  },
+  "warnings": []
+}

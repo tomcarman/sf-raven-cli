@@ -21,6 +21,7 @@
   * [sf raven inspect dependencies](#sf-raven-inspect-dependencies)
   * [sf raven inspect field](#sf-raven-inspect-field)
   * [sf raven pull](#sf-raven-pull)
+  * [sf raven pull list](#sf-raven-pull-list)
   * [sf raven pull remote](#sf-raven-pull-remote)
   * [sf raven pull remote type add](#sf-raven-pull-remote-type-add)
   * [sf raven pull remote type list](#sf-raven-pull-remote-type-list)
@@ -86,6 +87,8 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 
 - [sf raven pull](#sf-raven-pull)
   - Update Salesforce metadata into the local project via a fuzzy finder.
+- [sf raven pull list](#sf-raven-pull-list)
+  - List metadata types and components available to pull, as JSON for machine consumption.
 - [sf raven pull remote](#sf-raven-pull-remote)
   - Retrieve Salesforce metadata that exists in the org but not locally, by selecting a configured metadata type and then one or more remote components.
 - [sf raven pull remote type add](#sf-raven-pull-remote-type-add)
@@ -376,6 +379,33 @@ EXAMPLES
   $ sf raven pull --all
 
   $ sf raven pull --target-org dev --all
+```
+
+### sf raven pull list
+
+List metadata types and components available to pull.
+
+```
+USAGE
+  $ sf raven pull list [--json] [-o <value>] [--all-types | -m <value>]
+
+FLAGS
+  -m, --metadata-type=<value>  List the merged local/remote components for this metadata type.
+  -o, --target-org=<value>     Username or alias of the target org.
+      --all-types              List every metadata type the org supports, instead of the effective type list.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Report the metadata inventory used by the interactive pull commands, without any prompts. By default, lists the effective metadata types (the configured `pullRemote.metadataTypes` plugin config, or the types present in the local project when no config exists) with a count of local components per type. Use `--all-types` to list every metadata type the org supports, or `--metadata-type` to list the merged local/remote component list for a single type. Designed for machine consumption via `--json`.
+
+EXAMPLES
+  $ sf raven pull list --json
+
+  $ sf raven pull list --all-types --json
+
+  $ sf raven pull list --metadata-type ApexClass --json
 ```
 
 ### sf raven pull remote

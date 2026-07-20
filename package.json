@@ -136,6 +136,9 @@
           "pull": {
             "description": "Commands relating to retrieving metadata.",
             "subtopics": {
+              "list": {
+                "description": "List metadata types and components available to pull."
+              },
               "remote": {
                 "description": "Commands relating to retrieving metadata that exists in the org but not locally.",
                 "subtopics": {

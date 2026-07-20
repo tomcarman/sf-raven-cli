@@ -1,0 +1,113 @@
+{
+  "status": 0,
+  "result": {
+    "metadataType": "ApexClass",
+    "components": [
+      {
+        "name": "AccountTriggerHandler",
+        "status": "remote"
+      },
+      {
+        "name": "CaptureLocalOnly",
+        "status": "local"
+      },
+      {
+        "name": "ChangePasswordController",
+        "status": "remote"
+      },
+      {
+        "name": "ChangePasswordControllerTest",
+        "status": "remote"
+      },
+      {
+        "name": "ColourTest",
+        "status": "remote"
+      },
+      {
+        "name": "ForgotPasswordController",
+        "status": "remote"
+      },
+      {
+        "name": "ForgotPasswordControllerTest",
+        "status": "remote"
+      },
+      {
+        "name": "HelloWorld",
+        "status": "both"
+      },
+      {
+        "name": "InstallationTests",
+        "status": "remote"
+      },
+      {
+        "name": "MaintenanceRequestHelper",
+        "status": "remote"
+      },
+      {
+        "name": "MyEndpoint",
+        "status": "remote"
+      },
+      {
+        "name": "MyProfilePageController",
+        "status": "remote"
+      },
+      {
+        "name": "MyProfilePageControllerTest",
+        "status": "remote"
+      },
+      {
+        "name": "OpportunityUtilities",
+        "status": "both"
+      },
+      {
+        "name": "SampleDeployClass",
+        "status": "remote"
+      },
+      {
+        "name": "SampleFailingTestClass",
+        "status": "remote"
+      },
+      {
+        "name": "SiteLoginController",
+        "status": "remote"
+      },
+      {
+        "name": "SiteLoginControllerTest",
+        "status": "remote"
+      },
+      {
+        "name": "SiteRegisterController",
+        "status": "remote"
+      },
+      {
+        "name": "SiteRegisterControllerTest",
+        "status": "remote"
+      },
+      {
+        "name": "startHereController",
+        "status": "remote"
+      },
+      {
+        "name": "WarehouseCalloutService",
+        "status": "remote"
+      },
+      {
+        "name": "WarehouseCalloutServiceMock",
+        "status": "remote"
+      },
+      {
+        "name": "WarehouseCalloutServiceTest",
+        "status": "remote"
+      },
+      {
+        "name": "WarehouseSyncSchedule",
+        "status": "remote"
+      },
+      {
+        "name": "XMLDom",
+        "status": "remote"
+      }
+    ]
+  },
+  "warnings": []
+}
