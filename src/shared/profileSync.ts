@@ -10,7 +10,7 @@ export type ProfileReader = (profileNames: string[]) => Promise<ProfileMetadata[
 
 export type ProfileSyncOptions = {
   projectRoot: string;
-  profileNames: string[];
+  profileNames?: string[];
   readProfiles: ProfileReader;
 };
 
@@ -19,8 +19,19 @@ export type SyncedProfile = {
   path: string;
 };
 
+export type SkippedProfile = {
+  name: string;
+};
+
+export type FailedProfile = {
+  name: string;
+  error: string;
+};
+
 export type ProfileSyncResult = {
   synced: SyncedProfile[];
+  skipped: SkippedProfile[];
+  failed: FailedProfile[];
 };
 
 type ProfileEntry = Record<string, unknown>;
@@ -35,11 +46,15 @@ type SectionRule = {
 const XML_DECL = '<?xml version="1.0" encoding="UTF-8"?>\n';
 const METADATA_NAMESPACE = 'http://soap.sforce.com/2006/04/metadata';
 
+// Hard API limit: readMetadata accepts at most 10 fullNames per call.
+const READ_BATCH_SIZE = 10;
+
 export const syncProfiles = async (options: ProfileSyncOptions): Promise<ProfileSyncResult> => {
   const localComponents = getLocalMetadataComponents(options.projectRoot);
   const trackedProfilePaths = getTrackedProfilePaths(localComponents);
+  const profileNames = options.profileNames ?? Array.from(trackedProfilePaths.keys()).sort(compareAscii);
 
-  const profilePaths = options.profileNames.map((profileName): [string, string] => {
+  const profilePaths = profileNames.map((profileName): [string, string] => {
     const profilePath = trackedProfilePaths.get(profileName);
 
     if (profilePath == null) {
@@ -50,21 +65,60 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
   });
 
   const inventory = buildComponentInventory(localComponents);
-  const orgProfiles = new Map((await options.readProfiles(options.profileNames)).map((profile) => [profile.fullName, profile]));
-  const synced: SyncedProfile[] = [];
+  const { orgProfiles, failures } = await readProfilesInBatches(profileNames, options.readProfiles);
+  const result: ProfileSyncResult = { synced: [], skipped: [], failed: [] };
 
   for (const [profileName, profilePath] of profilePaths) {
+    const failure = failures.get(profileName);
+
+    if (failure != null) {
+      result.failed.push({ name: profileName, error: failure });
+      continue;
+    }
+
     const orgProfile = orgProfiles.get(profileName);
 
     if (orgProfile == null) {
-      throw new Error(`Profile "${profileName}" was not found in the org.`);
+      result.skipped.push({ name: profileName });
+      continue;
     }
 
     writeFileSync(profilePath, serializeProfile(filterProfile(orgProfile, inventory)));
-    synced.push({ name: profileName, path: profilePath });
+    result.synced.push({ name: profileName, path: profilePath });
   }
 
-  return { synced };
+  return result;
+};
+
+const readProfilesInBatches = async (
+  profileNames: string[],
+  readProfiles: ProfileReader
+): Promise<{ orgProfiles: Map<string, ProfileMetadata>; failures: Map<string, string> }> => {
+  const orgProfiles = new Map<string, ProfileMetadata>();
+  const failures = new Map<string, string>();
+  const batches: string[][] = [];
+
+  for (let start = 0; start < profileNames.length; start += READ_BATCH_SIZE) {
+    batches.push(profileNames.slice(start, start + READ_BATCH_SIZE));
+  }
+
+  await Promise.all(
+    batches.map(async (batchNames) => {
+      try {
+        for (const profile of await readProfiles(batchNames)) {
+          if (profile.fullName != null) {
+            orgProfiles.set(profile.fullName, profile);
+          }
+        }
+      } catch (error) {
+        for (const profileName of batchNames) {
+          failures.set(profileName, error instanceof Error ? error.message : String(error));
+        }
+      }
+    })
+  );
+
+  return { orgProfiles, failures };
 };
 
 const getTrackedProfilePaths = (localComponents: MetadataComponent[]): Map<string, string> => {

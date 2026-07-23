@@ -12,13 +12,16 @@ const objectXml =
 const fieldXml =
   '<?xml version="1.0" encoding="UTF-8"?>\n<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">\n    <fullName>Count__c</fullName>\n    <type>Number</type>\n</CustomField>\n';
 
-const createProject = (): string => {
+type ProjectOptions = {
+  profiles?: string[];
+  otherPackageProfiles?: string[];
+};
+
+const createProject = ({ profiles = ['Admin'], otherPackageProfiles = [] }: ProjectOptions = {}): string => {
   const projectRoot = mkdtempSync(join(tmpdir(), 'sf-raven-profile-sync-test-'));
 
-  writeFileSync(
-    join(projectRoot, 'sfdx-project.json'),
-    JSON.stringify({ packageDirectories: [{ path: 'force-app', default: true }], sourceApiVersion: '61.0' }, null, 2)
-  );
+  const packageDirectories = [{ path: 'force-app', default: true }, ...(otherPackageProfiles.length > 0 ? [{ path: 'other-app' }] : [])];
+  writeFileSync(join(projectRoot, 'sfdx-project.json'), JSON.stringify({ packageDirectories, sourceApiVersion: '61.0' }, null, 2));
 
   const defaultDir = join(projectRoot, 'force-app', 'main', 'default');
   const profilesDir = join(defaultDir, 'profiles');
@@ -31,7 +34,18 @@ const createProject = (): string => {
   mkdirSync(widgetFieldsDir, { recursive: true });
   mkdirSync(accountDir, { recursive: true });
 
-  writeFileSync(join(profilesDir, 'Admin.profile-meta.xml'), staleProfileXml);
+  for (const profileName of profiles) {
+    writeFileSync(join(profilesDir, `${profileName}.profile-meta.xml`), staleProfileXml);
+  }
+
+  if (otherPackageProfiles.length > 0) {
+    const otherProfilesDir = join(projectRoot, 'other-app', 'main', 'default', 'profiles');
+    mkdirSync(otherProfilesDir, { recursive: true });
+
+    for (const profileName of otherPackageProfiles) {
+      writeFileSync(join(otherProfilesDir, `${profileName}.profile-meta.xml`), staleProfileXml);
+    }
+  }
   writeFileSync(join(classesDir, 'TrackedClass.cls'), 'public class TrackedClass {}\n');
   writeFileSync(
     join(classesDir, 'TrackedClass.cls-meta.xml'),
@@ -197,7 +211,124 @@ describe('profile sync', () => {
     assert.deepEqual(requestedNames, [['Admin']]);
     assert.deepEqual(result, {
       synced: [{ name: 'Admin', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml') }],
+      skipped: [],
+      failed: [],
     });
+  });
+
+  it('syncs every locally tracked profile in place when no names are given, including non-default package directories', async () => {
+    const projectRoot = trackProject(createProject({ profiles: ['Admin', 'Support'], otherPackageProfiles: ['Marketing'] }));
+    const requestedNames: string[][] = [];
+    const readProfiles = (profileNames: string[]): Promise<ProfileMetadata[]> => {
+      requestedNames.push(profileNames);
+      return Promise.resolve(profileNames.map((name) => ({ fullName: name, custom: 'false' })));
+    };
+
+    const result = await syncProfiles({ projectRoot, readProfiles });
+
+    assert.deepEqual(requestedNames, [['Admin', 'Marketing', 'Support']]);
+    assert.deepEqual(result, {
+      synced: [
+        { name: 'Admin', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml') },
+        { name: 'Marketing', path: join(projectRoot, 'other-app', 'main', 'default', 'profiles', 'Marketing.profile-meta.xml') },
+        { name: 'Support', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml') },
+      ],
+      skipped: [],
+      failed: [],
+    });
+
+    for (const profile of result.synced) {
+      assert.notEqual(readFileSync(profile.path, 'utf8'), staleProfileXml);
+    }
+  });
+
+  it('syncs exactly the named profiles when several are given', async () => {
+    const projectRoot = trackProject(createProject({ profiles: ['Admin', 'Support', 'Sales'] }));
+    const requestedNames: string[][] = [];
+    const readProfiles = (profileNames: string[]): Promise<ProfileMetadata[]> => {
+      requestedNames.push(profileNames);
+      return Promise.resolve(profileNames.map((name) => ({ fullName: name, custom: 'false' })));
+    };
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Sales', 'Admin'], readProfiles });
+
+    assert.deepEqual(requestedNames, [['Sales', 'Admin']]);
+    assert.deepEqual(
+      result.synced.map((profile) => profile.name),
+      ['Sales', 'Admin']
+    );
+    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml'), 'utf8'), staleProfileXml);
+  });
+
+  it('fetches more than 10 profiles in parallel batches of at most 10', async () => {
+    const profileNames = Array.from({ length: 11 }, (_, index) => `Profile${String(index).padStart(2, '0')}`);
+    const projectRoot = trackProject(createProject({ profiles: profileNames }));
+    const requestedNames: string[][] = [];
+    let releaseBatches = (): void => {};
+    const allBatchesIssued = new Promise<void>((resolve) => {
+      releaseBatches = resolve;
+    });
+    const readProfiles = async (batchNames: string[]): Promise<ProfileMetadata[]> => {
+      requestedNames.push(batchNames);
+
+      if (requestedNames.length === 2) {
+        releaseBatches();
+      }
+
+      // Each batch resolves only once both batches have been issued, so a sequential implementation deadlocks here.
+      await Promise.race([
+        allBatchesIssued,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('batches were not issued in parallel')), 2000).unref();
+        }),
+      ]);
+
+      return batchNames.map((name) => ({ fullName: name, custom: 'false' }));
+    };
+
+    const result = await syncProfiles({ projectRoot, readProfiles });
+
+    assert.deepEqual(requestedNames, [profileNames.slice(0, 10), profileNames.slice(10)]);
+    assert.deepEqual(
+      result.synced.map((profile) => profile.name),
+      profileNames
+    );
+  });
+
+  it('skips a tracked profile the org does not return and syncs the rest', async () => {
+    const projectRoot = trackProject(createProject({ profiles: ['Admin', 'Ghost'] }));
+    const readProfiles = readerFor([{ fullName: 'Admin', custom: 'false' }]);
+
+    const result = await syncProfiles({ projectRoot, readProfiles });
+
+    assert.deepEqual(
+      result.synced.map((profile) => profile.name),
+      ['Admin']
+    );
+    assert.deepEqual(result.skipped, [{ name: 'Ghost' }]);
+    assert.deepEqual(result.failed, []);
+    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Ghost.profile-meta.xml'), 'utf8'), staleProfileXml);
+  });
+
+  it('records a failed batch per profile and still syncs the other batches', async () => {
+    const profileNames = Array.from({ length: 11 }, (_, index) => `Profile${String(index).padStart(2, '0')}`);
+    const projectRoot = trackProject(createProject({ profiles: profileNames }));
+    const readProfiles = (batchNames: string[]): Promise<ProfileMetadata[]> =>
+      batchNames.length === 10
+        ? Promise.reject(new Error('read timed out'))
+        : Promise.resolve(batchNames.map((name) => ({ fullName: name, custom: 'false' })));
+
+    const result = await syncProfiles({ projectRoot, readProfiles });
+
+    assert.deepEqual(
+      result.synced.map((profile) => profile.name),
+      ['Profile10']
+    );
+    assert.deepEqual(
+      result.failed,
+      profileNames.slice(0, 10).map((name) => ({ name, error: 'read timed out' }))
+    );
+    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Profile00.profile-meta.xml'), 'utf8'), staleProfileXml);
   });
 
   it('rejects a profile that is not tracked in local source without touching the org', async () => {
@@ -214,15 +345,4 @@ describe('profile sync', () => {
     assert.equal(readerCalled, false);
   });
 
-  it('rejects a tracked profile that the org does not return', async () => {
-    const projectRoot = trackProject(createProject());
-
-    await assert.rejects(syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([]) }), {
-      message: 'Profile "Admin" was not found in the org.',
-    });
-    assert.equal(
-      readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), 'utf8'),
-      staleProfileXml
-    );
-  });
 });

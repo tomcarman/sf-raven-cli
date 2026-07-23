@@ -22,7 +22,8 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
     profile: Flags.string({
       summary: messages.getMessage('flags.profile.summary'),
       char: 'p',
-      required: true,
+      multiple: true,
+      delimiter: ',',
     }),
   };
 
@@ -31,18 +32,37 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
     const projectRoot = process.cwd();
     const connection = flags['target-org'].getConnection(await getSourceApiVersion(projectRoot));
+    const profileNames = flags.profile?.map((profileName) => profileName.trim()).filter((profileName) => profileName.length > 0);
 
-    const readProfiles = async (profileNames: string[]): Promise<ProfileMetadata[]> =>
-      ensureArray(await connection.metadata.read('Profile', profileNames)) as unknown as ProfileMetadata[];
+    if (profileNames != null && profileNames.length === 0) {
+      throw messages.createError('error.noProfileNames');
+    }
 
-    this.spinner.start(messages.getMessage('info.syncing', [flags.profile]));
+    const readProfiles = async (batchNames: string[]): Promise<ProfileMetadata[]> =>
+      ensureArray(await connection.metadata.read('Profile', batchNames)) as unknown as ProfileMetadata[];
+
+    this.spinner.start(
+      profileNames == null ? messages.getMessage('info.syncingAll') : messages.getMessage('info.syncing', [profileNames.join(', ')])
+    );
 
     try {
-      const result = await syncProfiles({ projectRoot, profileNames: [flags.profile], readProfiles });
+      const result = await syncProfiles({ projectRoot, profileNames, readProfiles });
       this.spinner.stop();
 
       for (const profile of result.synced) {
         ux.log(messages.getMessage('info.synced', [profile.name, profile.path]));
+      }
+
+      for (const profile of result.skipped) {
+        this.warn(messages.getMessage('warning.skipped', [profile.name]));
+      }
+
+      for (const profile of result.failed) {
+        this.warn(messages.getMessage('warning.failed', [profile.name, profile.error]));
+      }
+
+      if (result.synced.length === 0 && result.skipped.length === 0 && result.failed.length === 0) {
+        this.warn(messages.getMessage('warning.noProfiles'));
       }
 
       return result;
