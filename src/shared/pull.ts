@@ -36,7 +36,13 @@ export type PullListComponentsResult = {
 type SfdxProject = {
   packageDirectories?: Array<{
     path?: string;
+    default?: boolean;
   }>;
+};
+
+type PackageDirectory = {
+  path: string;
+  default?: boolean;
 };
 
 type ChildProcessResult = {
@@ -458,19 +464,28 @@ const getMetadataTypeName = (metadataType: MetadataTypeDescription): string | un
 const sortValues = (values: Iterable<string>): string[] =>
   Array.from(new Set(Array.from(values).filter((value) => value.length > 0))).sort((left, right) => left.localeCompare(right));
 
-const getPackageDirectoryPaths = (projectRoot: string): string[] => {
+export const getDefaultPackageDirectoryPath = (projectRoot: string): string => {
+  const packageDirectories = getPackageDirectories(projectRoot);
+
+  return (packageDirectories.find((packageDirectory) => packageDirectory.default === true) ?? packageDirectories[0]).path;
+};
+
+const getPackageDirectoryPaths = (projectRoot: string): string[] =>
+  getPackageDirectories(projectRoot).map((packageDirectory) => packageDirectory.path);
+
+const getPackageDirectories = (projectRoot: string): PackageDirectory[] => {
   const sfdxProjectPath = join(projectRoot, 'sfdx-project.json');
 
   if (!existsSync(sfdxProjectPath)) {
-    return existsSync(join(projectRoot, 'force-app')) ? ['force-app'] : ['.'];
+    return [{ path: existsSync(join(projectRoot, 'force-app')) ? 'force-app' : '.' }];
   }
 
   const sfdxProject = JSON.parse(readFileSync(sfdxProjectPath, 'utf8')) as SfdxProject;
-  const packageDirectoryPaths = sfdxProject.packageDirectories
-    ?.map((packageDirectory) => packageDirectory.path)
-    .filter((packageDirectoryPath): packageDirectoryPath is string => packageDirectoryPath != null);
+  const packageDirectories = (sfdxProject.packageDirectories ?? []).filter(
+    (packageDirectory): packageDirectory is PackageDirectory => packageDirectory.path != null
+  );
 
-  return packageDirectoryPaths != null && packageDirectoryPaths.length > 0 ? packageDirectoryPaths : ['force-app'];
+  return packageDirectories.length > 0 ? packageDirectories : [{ path: 'force-app' }];
 };
 
 const collectPaths = (projectRoot: string, currentPath: string, metadataPaths: Set<string>): void => {

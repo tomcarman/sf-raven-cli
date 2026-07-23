@@ -58,6 +58,10 @@ Checking all locally tracked profiles against the org
 
 Synced %s -> %s
 
+# info.adopted
+
+Created %s -> %s
+
 # info.unchanged
 
 %s is already up to date.

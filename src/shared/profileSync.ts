@@ -1,8 +1,9 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 import { ensureArray } from '@salesforce/kit';
 import { SourceComponent, type MetadataComponent } from '@salesforce/source-deploy-retrieve';
-import { getLocalMetadataComponents } from './pull.js';
+import { getDefaultPackageDirectoryPath, getLocalMetadataComponents } from './pull.js';
 
 export type ProfileMetadata = Record<string, unknown> & { fullName?: string };
 
@@ -13,6 +14,7 @@ export type ProfileSyncOptions = {
   profileNames?: string[];
   readProfiles: ProfileReader;
   dryRun?: boolean;
+  adoptUntracked?: boolean;
 };
 
 export type SectionChanges = {
@@ -26,6 +28,7 @@ export type SyncedProfile = {
   name: string;
   path: string;
   changed: boolean;
+  adopted?: boolean;
   changes: SectionChanges[];
 };
 
@@ -66,14 +69,22 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
   const trackedProfilePaths = getTrackedProfilePaths(localComponents);
   const profileNames = options.profileNames ?? Array.from(trackedProfilePaths.keys()).sort(compareAscii);
 
-  const profilePaths = profileNames.map((profileName): [string, string] => {
-    const profilePath = trackedProfilePaths.get(profileName);
+  const adoptionDir = options.adoptUntracked
+    ? join(options.projectRoot, getDefaultPackageDirectoryPath(options.projectRoot), 'main', 'default', 'profiles')
+    : undefined;
 
-    if (profilePath == null) {
+  const profileTargets = profileNames.map((profileName): ProfileTarget => {
+    const trackedPath = trackedProfilePaths.get(profileName);
+
+    if (trackedPath != null) {
+      return { profileName, profilePath: trackedPath, adopted: false };
+    }
+
+    if (adoptionDir == null) {
       throw new Error(`Profile "${profileName}" is not tracked in local source.`);
     }
 
-    return [profileName, profilePath];
+    return { profileName, profilePath: join(adoptionDir, `${profileName}.profile-meta.xml`), adopted: true };
   });
 
   const inventory = buildComponentInventory(localComponents);
@@ -81,7 +92,7 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
   const { orgProfiles, failures } = await readProfilesInBatches(profileNames, options.readProfiles);
   const result: ProfileSyncResult = { synced: [], skipped: [], failed: [], dryRun, drifted: false };
 
-  for (const [profileName, profilePath] of profilePaths) {
+  for (const { profileName, profilePath, adopted } of profileTargets) {
     const failure = failures.get(profileName);
 
     if (failure != null) {
@@ -98,10 +109,14 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
 
     const filteredProfile = filterProfile(orgProfile, inventory);
     const newContent = serializeProfile(filteredProfile);
-    const oldContent = readFileSync(profilePath, 'utf8');
+    const oldContent = adopted ? undefined : readFileSync(profilePath, 'utf8');
     const changed = newContent !== oldContent;
 
     if (changed && !dryRun) {
+      if (adopted) {
+        mkdirSync(dirname(profilePath), { recursive: true });
+      }
+
       writeFileSync(profilePath, newContent);
     }
 
@@ -110,11 +125,18 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
       name: profileName,
       path: profilePath,
       changed,
-      changes: changed ? diffProfiles(parseProfileXml(oldContent), filteredProfile) : [],
+      ...(adopted ? { adopted } : {}),
+      changes: changed ? diffProfiles(oldContent == null ? {} : parseProfileXml(oldContent), filteredProfile) : [],
     });
   }
 
   return result;
+};
+
+type ProfileTarget = {
+  profileName: string;
+  profilePath: string;
+  adopted: boolean;
 };
 
 const readProfilesInBatches = async (

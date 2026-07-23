@@ -1,7 +1,14 @@
-import { Messages, SfProject } from '@salesforce/core';
+import { Messages, SfProject, type Connection } from '@salesforce/core';
 import { ensureArray } from '@salesforce/kit';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { syncProfiles, type ProfileMetadata, type ProfileSyncResult, type SectionChanges, type SyncedProfile } from '../../../shared/profileSync.js';
+import {
+  syncProfiles,
+  type ProfileMetadata,
+  type ProfileReader,
+  type ProfileSyncResult,
+  type SectionChanges,
+  type SyncedProfile,
+} from '../../../shared/profileSync.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.profile.sync');
@@ -42,9 +49,7 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
       throw messages.createError('error.noProfileNames');
     }
 
-    const readProfiles = async (batchNames: string[]): Promise<ProfileMetadata[]> =>
-      ensureArray(await connection.metadata.read('Profile', batchNames)) as unknown as ProfileMetadata[];
-
+    const readProfiles = createProfileReader(connection);
     const dryRun = flags['dry-run'];
     const spinnerMessages = dryRun
       ? { all: 'info.checkingAll', named: 'info.checking' }
@@ -59,17 +64,7 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
       const result = await syncProfiles({ projectRoot, profileNames, readProfiles, dryRun });
       this.spinner.stop();
 
-      for (const profile of result.synced) {
-        logSyncedProfile(ux, profile, dryRun);
-      }
-
-      for (const profile of result.skipped) {
-        this.warn(messages.getMessage('warning.skipped', [profile.name]));
-      }
-
-      for (const profile of result.failed) {
-        this.warn(messages.getMessage('warning.failed', [profile.name, profile.error]));
-      }
+      displaySyncResult(ux, (message) => this.warn(message), result, dryRun);
 
       if (result.synced.length === 0 && result.skipped.length === 0 && result.failed.length === 0) {
         this.warn(messages.getMessage('warning.noProfiles'));
@@ -101,17 +96,38 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
 
 }
 
+export const createProfileReader =
+  (connection: Connection): ProfileReader =>
+  async (batchNames: string[]): Promise<ProfileMetadata[]> =>
+    ensureArray(await connection.metadata.read('Profile', batchNames)) as unknown as ProfileMetadata[];
+
+export const displaySyncResult = (ux: Ux, warn: (message: string) => void, result: ProfileSyncResult, dryRun: boolean): void => {
+  for (const profile of result.synced) {
+    logSyncedProfile(ux, profile, dryRun);
+  }
+
+  for (const profile of result.skipped) {
+    warn(messages.getMessage('warning.skipped', [profile.name]));
+  }
+
+  for (const profile of result.failed) {
+    warn(messages.getMessage('warning.failed', [profile.name, profile.error]));
+  }
+};
+
 const logSyncedProfile = (ux: Ux, profile: SyncedProfile, dryRun: boolean): void => {
   if (!profile.changed) {
     ux.log(messages.getMessage('info.unchanged', [profile.name]));
     return;
   }
 
-  ux.log(
-    dryRun
-      ? messages.getMessage('info.wouldChange', [profile.name])
-      : messages.getMessage('info.synced', [profile.name, profile.path])
-  );
+  if (dryRun) {
+    ux.log(messages.getMessage('info.wouldChange', [profile.name]));
+  } else if (profile.adopted) {
+    ux.log(messages.getMessage('info.adopted', [profile.name, profile.path]));
+  } else {
+    ux.log(messages.getMessage('info.synced', [profile.name, profile.path]));
+  }
 
   if (profile.changes.length === 0) {
     ux.log(messages.getMessage('info.formattingOnly'));
@@ -132,7 +148,7 @@ const formatChangeCounts = (section: SectionChanges): string =>
     .filter((part): part is string => part != null)
     .join(', ');
 
-const getSourceApiVersion = async (projectRoot: string): Promise<string | undefined> => {
+export const getSourceApiVersion = async (projectRoot: string): Promise<string | undefined> => {
   const project = await SfProject.resolve(projectRoot);
   const sourceApiVersion = project.getSfProjectJson().get('sourceApiVersion');
 

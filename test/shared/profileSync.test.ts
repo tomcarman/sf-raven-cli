@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { syncProfiles, type ProfileMetadata } from '../../src/shared/profileSync.js';
@@ -15,12 +15,17 @@ const fieldXml =
 type ProjectOptions = {
   profiles?: string[];
   otherPackageProfiles?: string[];
+  defaultPackageDirectory?: 'force-app' | 'other-app';
 };
 
-const createProject = ({ profiles = ['Admin'], otherPackageProfiles = [] }: ProjectOptions = {}): string => {
+const createProject = ({ profiles = ['Admin'], otherPackageProfiles = [], defaultPackageDirectory = 'force-app' }: ProjectOptions = {}): string => {
   const projectRoot = mkdtempSync(join(tmpdir(), 'sf-raven-profile-sync-test-'));
 
-  const packageDirectories = [{ path: 'force-app', default: true }, ...(otherPackageProfiles.length > 0 ? [{ path: 'other-app' }] : [])];
+  const includeOtherPackage = otherPackageProfiles.length > 0 || defaultPackageDirectory === 'other-app';
+  const packageDirectories = [
+    { path: 'force-app', default: defaultPackageDirectory === 'force-app' },
+    ...(includeOtherPackage ? [{ path: 'other-app', default: defaultPackageDirectory === 'other-app' }] : []),
+  ];
   writeFileSync(join(projectRoot, 'sfdx-project.json'), JSON.stringify({ packageDirectories, sourceApiVersion: '61.0' }, null, 2));
 
   const defaultDir = join(projectRoot, 'force-app', 'main', 'default');
@@ -482,6 +487,146 @@ describe('profile sync', () => {
         changes: [],
       },
     ]);
+  });
+
+  it('adopts an untracked profile into the default package directory, filtered and canonically serialized', async () => {
+    const projectRoot = trackProject(createProject());
+    const orgProfile: ProfileMetadata = {
+      fullName: 'Read Only',
+      classAccesses: [
+        { apexClass: 'OrgOnlyClass', enabled: 'true' },
+        { apexClass: 'TrackedClass', enabled: 'false' },
+      ],
+      custom: 'false',
+      userLicense: 'Salesforce',
+    };
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Read Only'], readProfiles: readerFor([orgProfile]), adoptUntracked: true });
+
+    const adoptedPath = join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml');
+    assert.deepEqual(result, {
+      synced: [
+        {
+          name: 'Read Only',
+          path: adoptedPath,
+          changed: true,
+          adopted: true,
+          changes: [
+            { section: 'classAccesses', added: 1, removed: 0, modified: 0 },
+            { section: 'custom', added: 1, removed: 0, modified: 0 },
+            { section: 'userLicense', added: 1, removed: 0, modified: 0 },
+          ],
+        },
+      ],
+      skipped: [],
+      failed: [],
+      dryRun: false,
+      drifted: true,
+    });
+
+    const expected = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Profile xmlns="http://soap.sforce.com/2006/04/metadata">',
+      '    <classAccesses>',
+      '        <apexClass>TrackedClass</apexClass>',
+      '        <enabled>false</enabled>',
+      '    </classAccesses>',
+      '    <custom>false</custom>',
+      '    <userLicense>Salesforce</userLicense>',
+      '</Profile>',
+      '',
+    ].join('\n');
+    assert.equal(readFileSync(adoptedPath, 'utf8'), expected);
+  });
+
+  it('adopts a profile byte-identically to a tracked sync of the same payload', async () => {
+    const projectRoot = trackProject(createProject());
+    const sections: ProfileMetadata = {
+      classAccesses: [
+        { apexClass: 'OrgOnlyClass', enabled: 'true' },
+        { apexClass: 'TrackedClass', enabled: 'false' },
+      ],
+      custom: 'false',
+      fieldPermissions: [
+        { field: 'Widget__c.Count__c', editable: 'false', readable: 'false' },
+        { field: 'OrgOnly__c.Stuff__c', editable: 'true', readable: 'true' },
+      ],
+      loginIpRanges: [{ startAddress: '10.0.0.1', endAddress: '10.0.0.255', description: 'Office' }],
+      userLicense: 'Salesforce',
+      userPermissions: [{ name: 'ApiEnabled', enabled: 'true' }],
+    };
+
+    await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([{ ...sections, fullName: 'Admin' }]) });
+    await syncProfiles({
+      projectRoot,
+      profileNames: ['Read Only'],
+      readProfiles: readerFor([{ ...sections, fullName: 'Read Only' }]),
+      adoptUntracked: true,
+    });
+
+    const syncedContent = readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), 'utf8');
+    const adoptedContent = readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml'), 'utf8');
+    assert.equal(adoptedContent, syncedContent);
+  });
+
+  it('refreshes tracked profiles and adopts untracked ones in a single run', async () => {
+    const projectRoot = trackProject(createProject({ profiles: ['Admin'] }));
+    const readProfiles = (profileNames: string[]): Promise<ProfileMetadata[]> =>
+      Promise.resolve(profileNames.map((name) => ({ fullName: name, custom: 'false' })));
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Admin', 'Read Only'], readProfiles, adoptUntracked: true });
+
+    assert.deepEqual(result.synced, [
+      {
+        name: 'Admin',
+        path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+        changed: true,
+        changes: [{ section: 'custom', added: 0, removed: 0, modified: 1 }],
+      },
+      {
+        name: 'Read Only',
+        path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml'),
+        changed: true,
+        adopted: true,
+        changes: [{ section: 'custom', added: 1, removed: 0, modified: 0 }],
+      },
+    ]);
+    assert.notEqual(readFileSync(result.synced[0].path, 'utf8'), staleProfileXml);
+    assert.equal(readFileSync(result.synced[1].path, 'utf8'), readFileSync(result.synced[0].path, 'utf8'));
+  });
+
+  it('adopts into the default package directory even when it is not listed first', async () => {
+    const projectRoot = trackProject(createProject({ defaultPackageDirectory: 'other-app' }));
+
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Read Only'],
+      readProfiles: readerFor([{ fullName: 'Read Only', custom: 'false' }]),
+      adoptUntracked: true,
+    });
+
+    const adoptedPath = join(projectRoot, 'other-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml');
+    assert.equal(result.synced[0].path, adoptedPath);
+    assert.ok(readFileSync(adoptedPath, 'utf8').includes('<custom>false</custom>'));
+  });
+
+  it('does not create an adopted profile file in dry-run mode', async () => {
+    const projectRoot = trackProject(createProject());
+
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Read Only'],
+      readProfiles: readerFor([{ fullName: 'Read Only', custom: 'false' }]),
+      adoptUntracked: true,
+      dryRun: true,
+    });
+
+    assert.equal(result.drifted, true);
+    assert.deepEqual(
+      result.synced.map((profile) => ({ name: profile.name, changed: profile.changed, adopted: profile.adopted })),
+      [{ name: 'Read Only', changed: true, adopted: true }]
+    );
+    assert.equal(existsSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml')), false);
   });
 
   it('rejects a profile that is not tracked in local source without touching the org', async () => {
