@@ -1,5 +1,5 @@
-import { writeFileSync } from 'node:fs';
-import { XMLBuilder } from 'fast-xml-parser';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 import { ensureArray } from '@salesforce/kit';
 import { SourceComponent, type MetadataComponent } from '@salesforce/source-deploy-retrieve';
 import { getLocalMetadataComponents } from './pull.js';
@@ -12,11 +12,21 @@ export type ProfileSyncOptions = {
   projectRoot: string;
   profileNames?: string[];
   readProfiles: ProfileReader;
+  dryRun?: boolean;
+};
+
+export type SectionChanges = {
+  section: string;
+  added: number;
+  removed: number;
+  modified: number;
 };
 
 export type SyncedProfile = {
   name: string;
   path: string;
+  changed: boolean;
+  changes: SectionChanges[];
 };
 
 export type SkippedProfile = {
@@ -32,6 +42,8 @@ export type ProfileSyncResult = {
   synced: SyncedProfile[];
   skipped: SkippedProfile[];
   failed: FailedProfile[];
+  dryRun: boolean;
+  drifted: boolean;
 };
 
 type ProfileEntry = Record<string, unknown>;
@@ -65,8 +77,9 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
   });
 
   const inventory = buildComponentInventory(localComponents);
+  const dryRun = options.dryRun ?? false;
   const { orgProfiles, failures } = await readProfilesInBatches(profileNames, options.readProfiles);
-  const result: ProfileSyncResult = { synced: [], skipped: [], failed: [] };
+  const result: ProfileSyncResult = { synced: [], skipped: [], failed: [], dryRun, drifted: false };
 
   for (const [profileName, profilePath] of profilePaths) {
     const failure = failures.get(profileName);
@@ -83,8 +96,22 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
       continue;
     }
 
-    writeFileSync(profilePath, serializeProfile(filterProfile(orgProfile, inventory)));
-    result.synced.push({ name: profileName, path: profilePath });
+    const filteredProfile = filterProfile(orgProfile, inventory);
+    const newContent = serializeProfile(filteredProfile);
+    const oldContent = readFileSync(profilePath, 'utf8');
+    const changed = newContent !== oldContent;
+
+    if (changed && !dryRun) {
+      writeFileSync(profilePath, newContent);
+    }
+
+    result.drifted = result.drifted || changed;
+    result.synced.push({
+      name: profileName,
+      path: profilePath,
+      changed,
+      changes: changed ? diffProfiles(parseProfileXml(oldContent), filteredProfile) : [],
+    });
   }
 
   return result;
@@ -216,6 +243,84 @@ const filterProfile = (profile: ProfileMetadata, inventory: ComponentInventory):
   return filtered;
 };
 
+const parseProfileXml = (profileXml: string): ProfileMetadata => {
+  const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false });
+  const parsed = parser.parse(profileXml) as Record<string, unknown>;
+  const profile = parsed['Profile'];
+
+  return isEntryValue(profile) && !Array.isArray(profile) ? profile : {};
+};
+
+const diffProfiles = (oldProfile: ProfileMetadata, newProfile: ProfileMetadata): SectionChanges[] => {
+  const changes: SectionChanges[] = [];
+
+  for (const sectionName of sortedKeyUnion(oldProfile, newProfile)) {
+    const sectionChanges = diffSection(sectionName, oldProfile[sectionName], newProfile[sectionName]);
+
+    if (sectionChanges.added > 0 || sectionChanges.removed > 0 || sectionChanges.modified > 0) {
+      changes.push(sectionChanges);
+    }
+  }
+
+  return changes;
+};
+
+const diffSection = (sectionName: string, oldValue: unknown, newValue: unknown): SectionChanges => {
+  const sectionChanges: SectionChanges = { section: sectionName, added: 0, removed: 0, modified: 0 };
+
+  if (isEntryValue(oldValue) || isEntryValue(newValue)) {
+    const oldEntries = toEntryMap(sectionName, oldValue);
+    const newEntries = toEntryMap(sectionName, newValue);
+
+    for (const [identity, comparable] of newEntries) {
+      const oldComparable = oldEntries.get(identity);
+
+      if (oldComparable == null) {
+        sectionChanges.added += 1;
+      } else if (oldComparable !== comparable) {
+        sectionChanges.modified += 1;
+      }
+    }
+
+    for (const identity of oldEntries.keys()) {
+      if (!newEntries.has(identity)) {
+        sectionChanges.removed += 1;
+      }
+    }
+  } else if (oldValue == null) {
+    sectionChanges.added = 1;
+  } else if (newValue == null) {
+    sectionChanges.removed = 1;
+  } else if (String(oldValue) !== String(newValue)) {
+    sectionChanges.modified = 1;
+  }
+
+  return sectionChanges;
+};
+
+// Entries are identified by the section's sort-key values; when a section has no known
+// sort keys, the whole entry is its identity, so a change counts as removed plus added.
+const toEntryMap = (sectionName: string, value: unknown): Map<string, string> => {
+  const entries = new Map<string, string>();
+
+  if (!isEntryValue(value)) {
+    return entries;
+  }
+
+  const sortKeys = sectionRules[sectionName]?.sortKeys;
+
+  for (const entry of ensureArray(value)) {
+    const comparable = JSON.stringify(toComparableEntry(entry));
+    const identity = sortKeys == null ? comparable : sortKeys.map((sortKey) => String(entry[sortKey] ?? '')).join(' ');
+    entries.set(identity, comparable);
+  }
+
+  return entries;
+};
+
+// Coerces leaf values to strings so parsed-from-disk entries compare equal to org entries.
+const toComparableEntry = (entry: ProfileEntry): ProfileEntry => mapEntry(entry, String);
+
 const serializeProfile = (profile: ProfileMetadata): string => {
   const body: Record<string, unknown> = {};
 
@@ -243,23 +348,25 @@ const toCanonicalSection = (sectionName: string, value: unknown): unknown => {
   return ensureArray(value).map(toOrderedEntry).sort(compareEntriesBy(sectionRules[sectionName]?.sortKeys ?? []));
 };
 
-const toOrderedEntry = (entry: ProfileEntry): ProfileEntry => {
-  const ordered: ProfileEntry = {};
+const toOrderedEntry = (entry: ProfileEntry): ProfileEntry => mapEntry(entry, (leafValue) => leafValue);
+
+const mapEntry = (entry: ProfileEntry, mapLeaf: (leafValue: unknown) => unknown): ProfileEntry => {
+  const mapped: ProfileEntry = {};
 
   for (const childName of Object.keys(entry).sort(compareAscii)) {
     const childValue = entry[childName];
-    ordered[childName] = isEntryValue(childValue) ? ensureArray(childValue).map(toOrderedEntry) : childValue;
+    mapped[childName] = isEntryValue(childValue)
+      ? ensureArray(childValue).map((childEntry) => mapEntry(childEntry, mapLeaf))
+      : mapLeaf(childValue);
   }
 
-  return ordered;
+  return mapped;
 };
 
 const compareEntriesBy =
   (sortKeys: string[]) =>
   (left: ProfileEntry, right: ProfileEntry): number => {
-    const tieBreakNames = Array.from(new Set([...Object.keys(left), ...Object.keys(right)])).sort(compareAscii);
-
-    for (const childName of [...sortKeys, ...tieBreakNames]) {
+    for (const childName of [...sortKeys, ...sortedKeyUnion(left, right)]) {
       const comparison = compareAscii(String(left[childName] ?? ''), String(right[childName] ?? ''));
 
       if (comparison !== 0) {
@@ -269,6 +376,9 @@ const compareEntriesBy =
 
     return 0;
   };
+
+const sortedKeyUnion = (left: object, right: object): string[] =>
+  Array.from(new Set([...Object.keys(left), ...Object.keys(right)])).sort(compareAscii);
 
 const isEntryValue = (value: unknown): value is ProfileEntry | ProfileEntry[] => typeof value === 'object' && value != null;
 

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { syncProfiles, type ProfileMetadata } from '../../src/shared/profileSync.js';
@@ -210,9 +210,18 @@ describe('profile sync', () => {
 
     assert.deepEqual(requestedNames, [['Admin']]);
     assert.deepEqual(result, {
-      synced: [{ name: 'Admin', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml') }],
+      synced: [
+        {
+          name: 'Admin',
+          path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+          changed: true,
+          changes: [{ section: 'custom', added: 0, removed: 0, modified: 1 }],
+        },
+      ],
       skipped: [],
       failed: [],
+      dryRun: false,
+      drifted: true,
     });
   });
 
@@ -227,14 +236,17 @@ describe('profile sync', () => {
     const result = await syncProfiles({ projectRoot, readProfiles });
 
     assert.deepEqual(requestedNames, [['Admin', 'Marketing', 'Support']]);
+    const customModified = { changed: true, changes: [{ section: 'custom', added: 0, removed: 0, modified: 1 }] };
     assert.deepEqual(result, {
       synced: [
-        { name: 'Admin', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml') },
-        { name: 'Marketing', path: join(projectRoot, 'other-app', 'main', 'default', 'profiles', 'Marketing.profile-meta.xml') },
-        { name: 'Support', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml') },
+        { name: 'Admin', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), ...customModified },
+        { name: 'Marketing', path: join(projectRoot, 'other-app', 'main', 'default', 'profiles', 'Marketing.profile-meta.xml'), ...customModified },
+        { name: 'Support', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml'), ...customModified },
       ],
       skipped: [],
       failed: [],
+      dryRun: false,
+      drifted: true,
     });
 
     for (const profile of result.synced) {
@@ -329,6 +341,147 @@ describe('profile sync', () => {
       profileNames.slice(0, 10).map((name) => ({ name, error: 'read timed out' }))
     );
     assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Profile00.profile-meta.xml'), 'utf8'), staleProfileXml);
+  });
+
+  it('summarises entries added, removed, and modified per section when syncing', async () => {
+    const projectRoot = trackProject(createProject());
+    const oldProfileXml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Profile xmlns="http://soap.sforce.com/2006/04/metadata">',
+      '    <classAccesses>',
+      '        <apexClass>TrackedClass</apexClass>',
+      '        <enabled>false</enabled>',
+      '    </classAccesses>',
+      '    <custom>true</custom>',
+      '    <fieldPermissions>',
+      '        <editable>false</editable>',
+      '        <field>Account.Industry</field>',
+      '        <readable>true</readable>',
+      '    </fieldPermissions>',
+      '    <fieldPermissions>',
+      '        <editable>true</editable>',
+      '        <field>Widget__c.Count__c</field>',
+      '        <readable>true</readable>',
+      '    </fieldPermissions>',
+      '    <userPermissions>',
+      '        <enabled>true</enabled>',
+      '        <name>ApiEnabled</name>',
+      '    </userPermissions>',
+      '</Profile>',
+      '',
+    ].join('\n');
+    writeFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), oldProfileXml);
+
+    const orgProfile: ProfileMetadata = {
+      fullName: 'Admin',
+      classAccesses: [{ apexClass: 'TrackedClass', enabled: 'true' }],
+      custom: 'false',
+      fieldPermissions: [
+        { field: 'Widget__c.Count__c', editable: 'false', readable: 'false' },
+        { field: 'Account.Name', editable: 'true', readable: 'true' },
+      ],
+      userLicense: 'Salesforce',
+      userPermissions: [
+        { name: 'ApiEnabled', enabled: 'true' },
+        { name: 'ViewSetup', enabled: 'true' },
+      ],
+    };
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]) });
+
+    assert.deepEqual(result.synced, [
+      {
+        name: 'Admin',
+        path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+        changed: true,
+        changes: [
+          { section: 'classAccesses', added: 0, removed: 0, modified: 1 },
+          { section: 'custom', added: 0, removed: 0, modified: 1 },
+          { section: 'fieldPermissions', added: 1, removed: 1, modified: 1 },
+          { section: 'userLicense', added: 1, removed: 0, modified: 0 },
+          { section: 'userPermissions', added: 1, removed: 0, modified: 0 },
+        ],
+      },
+    ]);
+  });
+
+  it('reports no changes and does not rewrite the file when the org matches disk', async () => {
+    const projectRoot = trackProject(createProject());
+    const orgProfile: ProfileMetadata = {
+      fullName: 'Admin',
+      classAccesses: [{ apexClass: 'TrackedClass', enabled: 'false' }],
+      custom: 'false',
+      userPermissions: [{ name: 'ApiEnabled', enabled: 'true' }],
+    };
+    const profilePath = join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml');
+
+    await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]) });
+    const syncedContent = readFileSync(profilePath, 'utf8');
+    chmodSync(profilePath, 0o444);
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]) });
+
+    assert.deepEqual(result.synced, [{ name: 'Admin', path: profilePath, changed: false, changes: [] }]);
+    assert.equal(readFileSync(profilePath, 'utf8'), syncedContent);
+  });
+
+  it('reports a change with an empty section summary when only formatting differs', async () => {
+    const projectRoot = trackProject(createProject());
+    const profilePath = join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml');
+    writeFileSync(
+      profilePath,
+      '<?xml version="1.0" encoding="UTF-8"?>\n<Profile xmlns="http://soap.sforce.com/2006/04/metadata">\n  <custom>true</custom>\n</Profile>\n'
+    );
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([{ fullName: 'Admin', custom: 'true' }]) });
+
+    assert.deepEqual(result.synced, [{ name: 'Admin', path: profilePath, changed: true, changes: [] }]);
+    assert.equal(result.drifted, true);
+    assert.equal(readFileSync(profilePath, 'utf8'), staleProfileXml);
+  });
+
+  it('reports drift without writing in dry-run mode', async () => {
+    const projectRoot = trackProject(createProject());
+    const profilePath = join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml');
+    chmodSync(profilePath, 0o444);
+    const orgProfile: ProfileMetadata = { fullName: 'Admin', custom: 'false' };
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]), dryRun: true });
+
+    assert.deepEqual(result, {
+      synced: [
+        {
+          name: 'Admin',
+          path: profilePath,
+          changed: true,
+          changes: [{ section: 'custom', added: 0, removed: 0, modified: 1 }],
+        },
+      ],
+      skipped: [],
+      failed: [],
+      dryRun: true,
+      drifted: true,
+    });
+    assert.equal(readFileSync(profilePath, 'utf8'), staleProfileXml);
+  });
+
+  it('reports no drift in dry-run mode when the org matches disk', async () => {
+    const projectRoot = trackProject(createProject());
+    const orgProfile: ProfileMetadata = { fullName: 'Admin', custom: 'true' };
+    await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]) });
+
+    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]), dryRun: true });
+
+    assert.equal(result.drifted, false);
+    assert.equal(result.dryRun, true);
+    assert.deepEqual(result.synced, [
+      {
+        name: 'Admin',
+        path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+        changed: false,
+        changes: [],
+      },
+    ]);
   });
 
   it('rejects a profile that is not tracked in local source without touching the org', async () => {

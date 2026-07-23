@@ -1,7 +1,7 @@
 import { Messages, SfProject } from '@salesforce/core';
 import { ensureArray } from '@salesforce/kit';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { syncProfiles, type ProfileMetadata, type ProfileSyncResult } from '../../../shared/profileSync.js';
+import { syncProfiles, type ProfileMetadata, type ProfileSyncResult, type SectionChanges, type SyncedProfile } from '../../../shared/profileSync.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.profile.sync');
@@ -25,6 +25,10 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
       multiple: true,
       delimiter: ',',
     }),
+    'dry-run': Flags.boolean({
+      summary: messages.getMessage('flags.dry-run.summary'),
+      default: false,
+    }),
   };
 
   public async run(): Promise<RavenProfileSyncResult> {
@@ -41,16 +45,22 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
     const readProfiles = async (batchNames: string[]): Promise<ProfileMetadata[]> =>
       ensureArray(await connection.metadata.read('Profile', batchNames)) as unknown as ProfileMetadata[];
 
+    const dryRun = flags['dry-run'];
+    const spinnerMessages = dryRun
+      ? { all: 'info.checkingAll', named: 'info.checking' }
+      : { all: 'info.syncingAll', named: 'info.syncing' };
     this.spinner.start(
-      profileNames == null ? messages.getMessage('info.syncingAll') : messages.getMessage('info.syncing', [profileNames.join(', ')])
+      profileNames == null
+        ? messages.getMessage(spinnerMessages.all)
+        : messages.getMessage(spinnerMessages.named, [profileNames.join(', ')])
     );
 
     try {
-      const result = await syncProfiles({ projectRoot, profileNames, readProfiles });
+      const result = await syncProfiles({ projectRoot, profileNames, readProfiles, dryRun });
       this.spinner.stop();
 
       for (const profile of result.synced) {
-        ux.log(messages.getMessage('info.synced', [profile.name, profile.path]));
+        logSyncedProfile(ux, profile, dryRun);
       }
 
       for (const profile of result.skipped) {
@@ -65,13 +75,62 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
         this.warn(messages.getMessage('warning.noProfiles'));
       }
 
+      if (dryRun) {
+        if (result.drifted) {
+          const driftedCount = result.synced.filter((profile) => profile.changed).length;
+          ux.log(messages.getMessage('info.driftDetected', [driftedCount]));
+        }
+
+        if (result.failed.length > 0) {
+          ux.log(messages.getMessage('info.driftUnknown', [result.failed.length]));
+        }
+
+        if (result.drifted || result.failed.length > 0) {
+          process.exitCode = 1;
+        } else {
+          ux.log(messages.getMessage('info.noDrift'));
+        }
+      }
+
       return result;
     } catch (error) {
       this.spinner.stop('failed');
       throw error;
     }
   }
+
 }
+
+const logSyncedProfile = (ux: Ux, profile: SyncedProfile, dryRun: boolean): void => {
+  if (!profile.changed) {
+    ux.log(messages.getMessage('info.unchanged', [profile.name]));
+    return;
+  }
+
+  ux.log(
+    dryRun
+      ? messages.getMessage('info.wouldChange', [profile.name])
+      : messages.getMessage('info.synced', [profile.name, profile.path])
+  );
+
+  if (profile.changes.length === 0) {
+    ux.log(messages.getMessage('info.formattingOnly'));
+    return;
+  }
+
+  for (const section of profile.changes) {
+    ux.log(messages.getMessage('info.sectionChanges', [section.section, formatChangeCounts(section)]));
+  }
+};
+
+const formatChangeCounts = (section: SectionChanges): string =>
+  [
+    section.added > 0 ? messages.getMessage('info.countAdded', [section.added]) : undefined,
+    section.removed > 0 ? messages.getMessage('info.countRemoved', [section.removed]) : undefined,
+    section.modified > 0 ? messages.getMessage('info.countModified', [section.modified]) : undefined,
+  ]
+    .filter((part): part is string => part != null)
+    .join(', ');
 
 const getSourceApiVersion = async (projectRoot: string): Promise<string | undefined> => {
   const project = await SfProject.resolve(projectRoot);
