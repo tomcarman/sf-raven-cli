@@ -11,7 +11,6 @@
 
 ## Overview
 
-* [AI Disclaimer](#-ai-disclaimer)
 * [Features](#features)
 * [Install](#install)
 * [Command Reference](#command-reference)
@@ -34,12 +33,6 @@
   * [sf raven audit display](#sf-raven-audit-display)
   * [sf raven event subscribe](#sf-raven-event-subscribe)
   * [sf raven apex log](#sf-raven-apex-log)
-
-## ✨ AI Disclaimer
-
-I started this plugin in 2020 (under it's predecessor [sfdx-raven](https://github.com/tomcarman/sfdx-raven)). It was a passion project to learn a bit of typescript development, and create solutions for problems that annoyed me as a day-to-day Salesforce Engineer. I've very slowly added commands over time, but its hard to find time to devote to tooling projects. 
-
-Now in 2026 I can use AI to generate new commands / functionality in minutes rather than hours. For me this is the perfect type of project for using AI heavily - it's a collection of tools to make my life a bit easier - aka it's not mission critical code. All that to say, since May 2026, this project is heavily using AI generated code. I barely read it. If that makes you uncomfortable, don't use it.
 
 ## Features
 
@@ -154,6 +147,8 @@ The plugin can be updated to the latest version using
 
 Show field information for a given sObject.
 
+FieldDefinition metadata is queried for the given sObject. The field Labels, API names, and Type are displayed.
+
 ```
 USAGE
   $ sf raven object display fields -o <value> -s <value> [--json] [-c <value>]
@@ -195,6 +190,8 @@ Annual Revenue     AnnualRevenue   Currency(18, 0)
 
 Show RecordType information for a given sObject.
 
+RecordType metadata is queried for the given sObject. The RecordType Name, DeveloperName, and Id are displayed.
+
 ```
 USAGE
   $ sf raven object display recordtypes -o <value> -s <value> [--json] [-c <value>]
@@ -235,6 +232,8 @@ Person Account      PersonAccount           0124J000000YYYYDEF
 
 Show Validation Rule information for a given sObject.
 
+Validation Rules are queried for the given sObject. The rule Name, Active status, Description, and Error Message are displayed.
+
 ```
 USAGE
   $ sf raven object display validationrules -o <value> -s <value> [--json] [-c <value>] [-a]
@@ -274,7 +273,9 @@ Valid_Billing_Country    false   Billing country must be ISO code  Enter a valid
 
 ### sf raven inspect automations
 
-Show all automation that fires on a given sObject.
+Displays Apex Triggers, record-triggered Flows, Workflow Rules, and Process Builder processes that are configured on the given sObject, grouped by execution phase.
+
+By default only active automation is shown. Use `--all` to include inactive items.
 
 ```
 USAGE
@@ -314,7 +315,11 @@ Post-Save       Workflow Rule Notify Account Owner        Insert, Update
 
 ### sf raven inspect dependencies
 
-Show what a metadata component depends on and what depends on it.
+Queries the MetadataComponentDependency API to show outbound dependencies (what this component uses) and inbound references (what uses this component).
+
+Supported types: ApexClass, ApexTrigger, Flow, CustomObject, CustomField, LightningComponentBundle, AuraDefinitionBundle.
+
+For CustomField, provide the name as ObjectApiName.FieldApiName (e.g. Account.MyField__c).
 
 ```
 USAGE
@@ -365,7 +370,11 @@ Flow       Opportunity_Update_Create_Service_Records
 
 ### sf raven inspect field
 
-Find everywhere a field is referenced across the org's metadata.
+Queries the MetadataComponentDependency API to find Apex classes, triggers, Flows, and other metadata that references the given custom field.
+
+For full coverage, use `--deep`. This retrieves FlexiPages, Layouts, and Flows via the Metadata API and text-searches their source, catching declarative references the dependency API does not track (including references to standard fields). The `--deep` retrieve is slower (typically 15-60s, longer on large orgs).
+
+Standard fields (e.g. Name, CreatedDate) can only be inspected with `--deep`, as the dependency API does not track them.
 
 ```
 USAGE
@@ -408,7 +417,7 @@ Layout     Account Layout       deep
 
 ### sf raven pull
 
-Update Salesforce metadata into the local project via a fuzzy finder.
+Refresh local Salesforce metadata from an authenticated org. Without `--all`, local metadata paths are loaded into fzf so you can choose one or more files or directories to retrieve. Press Tab to select multiple paths, then Enter to retrieve them together. With `--all`, each package directory from sfdx-project.json is retrieved.
 
 ```
 USAGE
@@ -436,7 +445,7 @@ EXAMPLES
 
 ### sf raven pull list
 
-List metadata types and components available to pull.
+Report the metadata inventory used by the interactive pull commands, without any prompts. By default, lists the effective metadata types (the configured `pullRemote.metadataTypes` plugin config, or the types present in the local project when no config exists) with a count of local components per type. Use `--all-types` to list every metadata type the org supports, or `--metadata-type` to list the merged local/remote component list for a single type. Designed for machine consumption via `--json`.
 
 ```
 USAGE
@@ -463,7 +472,7 @@ EXAMPLES
 
 ### sf raven pull remote
 
-Pull Salesforce metadata that exists in the org but not locally.
+Select a configured metadata type, then list components of that type that exist in the target org but are not present in the local project. Org-only components are prefixed with a cloud marker in fzf. Press Tab to select multiple components, then Enter to retrieve them.
 
 ```
 USAGE
@@ -486,7 +495,7 @@ EXAMPLES
 
 ### sf raven pull remote type add
 
-Add metadata types supported by remote pull.
+List metadata types available in the target org and select one or more to add to this project's `sf raven pull remote` configuration. Press Tab to select multiple types in fzf, then Enter to save them.
 
 ```
 USAGE
@@ -509,7 +518,7 @@ EXAMPLES
 
 ### sf raven pull remote type list
 
-List metadata types supported by remote pull.
+Display the metadata types that `sf raven pull remote` can inspect. If no project configuration has been saved yet, the list is derived from metadata types already present in the local project.
 
 ```
 USAGE
@@ -527,7 +536,7 @@ EXAMPLES
 
 ### sf raven pull remote type remove
 
-Remove metadata types supported by remote pull.
+Select one or more metadata types to remove from this project's `sf raven pull remote` configuration. Press Tab to select multiple types in fzf, then Enter to save the updated list.
 
 ```
 USAGE
@@ -545,7 +554,9 @@ EXAMPLES
 
 ### sf raven profile sync
 
-Sync full Profile metadata from an org into local source files.
+Reads the complete content of each Profile directly from the org via the CRUD Metadata API, which is not package-context-scoped, filters it down to the components tracked in local source, and overwrites the tracked profile files in place, wherever they live across package directories. The output is byte-identical to what a full-project `sf project retrieve` would produce for the profiles, in a fraction of the time. With no arguments, every profile tracked in local source is synced; profiles are fetched in parallel batches, and profiles that exist locally but not in the org are skipped with a warning. Entries that reference metadata not present in the local project are filtered out; user permissions, login IP ranges, the custom flag, and the user license are always kept in full. The org read uses the project's sourceApiVersion.
+
+Each synced profile is reported with a per-section summary of entries added, removed, and modified. With `--dry-run`, no files are written: the command prints the changes a sync would make and exits non-zero if any profile differs from the org (or could not be read from it), so CI can detect profiles changed directly in the org.
 
 ```
 USAGE
@@ -584,7 +595,7 @@ Standard User is already up to date.
 
 ### sf raven profile sync select
 
-Interactively pick org profiles to sync into local source, including profiles not yet tracked.
+Lists every profile in the target org, alongside every profile tracked in local source, in a multi-select fuzzy picker (requires fzf). Each profile is annotated with its status: "both" (tracked locally and in the org), "remote" (org only), or "local" (local source only). Selected profiles that are tracked locally are refreshed in place through the same pipeline as `sf raven profile sync`. Selected profiles that exist only in the org are adopted: a new profile file is created in the default package directory's profiles folder, filtered to the components tracked in local source and serialized identically to synced profiles. Selected local-only profiles are skipped with a warning, and cancelling the picker makes no changes.
 
 ```
 USAGE
@@ -616,7 +627,7 @@ Created Read Only -> force-app/main/default/profiles/Read Only.profile-meta.xml
 
 ### sf raven deploy cancel
 
-Cancel a pending or in-progress Salesforce deploy.
+Query the target org for pending or in-progress deploy requests, select one from an interactive list, confirm the cancellation, and submit an asynchronous deploy cancel request.
 
 ```
 USAGE
@@ -639,7 +650,7 @@ EXAMPLES
 
 ### sf raven query ids
 
-Run a SOQL query against a large list of Salesforce IDs.
+Read Salesforce IDs from a file, deduplicate and validate them, split them into safe query batches, and run a SOQL query with the IDs inserted at the `{ids}` placeholder.
 
 ```
 USAGE
@@ -672,6 +683,8 @@ EXAMPLES
 ### sf raven audit display
 
 Show recent entries in the Setup Audit Trail.
+
+Returns the 20 most recent Setup Audit Trail entries, but this can be increased up to 2000 using the optional `--limit` flag. The results can be filtered by a particular user using the `--username` flag.
 
 ```
 USAGE
@@ -711,7 +724,9 @@ Date                Username      Type         Action                           
 
 ### sf raven event subscribe
 
-Subscribe to Platform Events, streamed to your terminal.
+Subscribe to Platform Events.
+
+Platform Events are printed to the terminal. An optional flag can be used to replay events from a given replay id. Default timeout is 3 minutes, but can be extended to 30 minutes.
 
 ```
 USAGE
@@ -729,7 +744,7 @@ GLOBAL FLAGS
 DESCRIPTION
   Subscribe to Platform Events.
 
-  Platform Events are printed to the terminal. An optional flag can be used to relay events from a given relayid. Defaut timeout is 3 minutes, but can be extended to 30 minutes.
+  Platform Events are printed to the terminal. An optional flag can be used to replay events from a given replay id. Default timeout is 3 minutes, but can be extended to 30 minutes.
 
 EXAMPLES
   $ sf raven event subscribe --target-org dev --event /event/My_Event__e

@@ -4,7 +4,7 @@ Subscribe to Platform Events.
 
 # description
 
-Platform Events are printed to the terminal. An optional flag can be used to relay events from a given relayid. Defaut timeout is 3 minutes, but can be extended to 30 minutes.
+Platform Events are printed to the terminal. An optional flag can be used to replay events from a given replay id. Default timeout is 3 minutes, but can be extended to 30 minutes.
 
 # flags.target-org.summary
 
