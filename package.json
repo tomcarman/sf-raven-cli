@@ -3,7 +3,7 @@
   "description": "A custom sf plugin built by @tomcarman",
   "version": "1.7.0",
   "dependencies": {
-    "@inquirer/select": "2.4.2",
+    "@inquirer/select": "2.5.0",
     "@oclif/core": "^4.0.14",
     "@salesforce/core": "^8.2.3",
     "@salesforce/kit": "^3.1.6",

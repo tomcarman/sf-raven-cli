@@ -9,7 +9,7 @@
       "version": "1.7.0",
       "license": "BSD-3-Clause",
       "dependencies": {
-        "@inquirer/select": "2.4.2",
+        "@inquirer/select": "2.5.0",
         "@oclif/core": "^4.0.14",
         "@salesforce/core": "^8.2.3",
         "@salesforce/kit": "^3.1.6",
@@ -2711,14 +2711,14 @@
       }
     },
     "node_modules/@inquirer/select": {
-      "version": "2.4.2",
-      "resolved": "https://registry.npmjs.org/@inquirer/select/-/select-2.4.2.tgz",
-      "integrity": "sha512-r78JlgShqRxyAtBDeBHSDtfrOhSQwm2ecWGGaxe7kD9JwgL3UN563G1ncVRYdsWD7/tigflcskfipVeoDLhLJg==",
+      "version": "2.5.0",
+      "resolved": "https://registry.npmjs.org/@inquirer/select/-/select-2.5.0.tgz",
+      "integrity": "sha512-YmDobTItPP3WcEI86GvPo+T2sRHkxxOq/kXmsBjHS5BVXUgvgZ5AfJjkvQvZr03T81NnI3KrrRuMzeuYUQRFOA==",
       "license": "MIT",
       "dependencies": {
-        "@inquirer/core": "^9.0.5",
+        "@inquirer/core": "^9.1.0",
         "@inquirer/figures": "^1.0.5",
-        "@inquirer/type": "^1.5.1",
+        "@inquirer/type": "^1.5.3",
         "ansi-escapes": "^4.3.2",
         "yoctocolors-cjs": "^2.1.2"
       },
@@ -11238,7 +11238,7 @@
         "@aws-sdk/client-s3": "^3.1048.0",
         "@inquirer/confirm": "^3.1.22",
         "@inquirer/input": "^2.2.4",
-        "@inquirer/select": "^2.5.0",
+        "@inquirer/select": "2.5.0",
         "@oclif/core": "^4.11.2",
         "@oclif/plugin-help": "^6.2.49",
         "@oclif/plugin-not-found": "^3.2.85",
@@ -11264,23 +11264,6 @@
       },
       "engines": {
         "node": ">=18.0.0"
-      }
-    },
-    "node_modules/oclif/node_modules/@inquirer/select": {
-      "version": "2.5.0",
-      "resolved": "https://registry.npmjs.org/@inquirer/select/-/select-2.5.0.tgz",
-      "integrity": "sha512-YmDobTItPP3WcEI86GvPo+T2sRHkxxOq/kXmsBjHS5BVXUgvgZ5AfJjkvQvZr03T81NnI3KrrRuMzeuYUQRFOA==",
-      "dev": true,
-      "license": "MIT",
-      "dependencies": {
-        "@inquirer/core": "^9.1.0",
-        "@inquirer/figures": "^1.0.5",
-        "@inquirer/type": "^1.5.3",
-        "ansi-escapes": "^4.3.2",
-        "yoctocolors-cjs": "^2.1.2"
-      },
-      "engines": {
-        "node": ">=18"
       }
     },
     "node_modules/oclif/node_modules/hosted-git-info": {
@@ -14679,14 +14662,27 @@
         "node": ">=18.0.0"
       }
     },
+    "node_modules/wireit/node_modules/balanced-match": {
+      "version": "4.0.4",
+      "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-4.0.4.tgz",
+      "integrity": "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==",
+      "dev": true,
+      "license": "MIT",
+      "engines": {
+        "node": "18 || 20 || >=22"
+      }
+    },
     "node_modules/wireit/node_modules/brace-expansion": {
-      "version": "2.0.1",
-      "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-2.0.1.tgz",
-      "integrity": "sha512-XnAIvQ8eM+kC6aULx6wuQiwVsnzsi9d3WxzV3FpWTGA19F621kwdbsAcFKXgKUHZWsy+mY6iL1sHTxWEFCytDA==",
+      "version": "5.0.6",
+      "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.6.tgz",
+      "integrity": "sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==",
       "dev": true,
       "license": "MIT",
       "dependencies": {
-        "balanced-match": "^1.0.0"
+        "balanced-match": "^4.0.2"
+      },
+      "engines": {
+        "node": "18 || 20 || >=22"
       }
     },
     "node_modules/word-wrap": {
