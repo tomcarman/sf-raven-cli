@@ -17,6 +17,7 @@
 * [Command Reference](#command-reference)
   * [sf raven object display fields](#sf-raven-object-display-fields)
   * [sf raven object display recordtypes](#sf-raven-object-display-recordtypes)
+  * [sf raven object display validationrules](#sf-raven-object-display-validationrules)
   * [sf raven inspect automations](#sf-raven-inspect-automations)
   * [sf raven inspect dependencies](#sf-raven-inspect-dependencies)
   * [sf raven inspect field](#sf-raven-inspect-field)
@@ -26,6 +27,8 @@
   * [sf raven pull remote type add](#sf-raven-pull-remote-type-add)
   * [sf raven pull remote type list](#sf-raven-pull-remote-type-list)
   * [sf raven pull remote type remove](#sf-raven-pull-remote-type-remove)
+  * [sf raven profile sync](#sf-raven-profile-sync)
+  * [sf raven profile sync select](#sf-raven-profile-sync-select)
   * [sf raven deploy cancel](#sf-raven-deploy-cancel)
   * [sf raven query ids](#sf-raven-query-ids)
   * [sf raven audit display](#sf-raven-audit-display)
@@ -48,6 +51,8 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
   - Show field information for a given sObject.
 - [sf raven object display recordtypes](#sf-raven-object-display-recordtypes)
   - Show RecordType information for a given sObject.
+- [sf raven object display validationrules](#sf-raven-object-display-validationrules)
+  - Show Validation Rule information for a given sObject.
 
 **sf raven inspect**
 
@@ -98,10 +103,17 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 - [sf raven pull remote type remove](#sf-raven-pull-remote-type-remove)
   - Remove metadata types from the remote pull configuration.
 
+**sf raven profile**
+
+- [sf raven profile sync](#sf-raven-profile-sync)
+  - Sync full Profile metadata from an org into local source files - byte-identical to a full-project retrieve, in a fraction of the time.
+- [sf raven profile sync select](#sf-raven-profile-sync-select)
+  - Interactively pick org profiles to sync into local source via a fuzzy finder, including adopting profiles not yet tracked.
+
 ## Install
 
 ### Dependencies
-* [fzf](https://github.com/junegunn/fzf) is required for the [sf raven pull](#sf-raven-pull) commands, and should be available on your path. (IMO they are probably the most useful commands in this plugin, so its worth setting up fzf if you don't have it.)
+* [fzf](https://github.com/junegunn/fzf) is required for the [sf raven pull](#sf-raven-pull) commands and [sf raven profile sync select](#sf-raven-profile-sync-select), and should be available on your path. (IMO they are probably the most useful commands in this plugin, so its worth setting up fzf if you don't have it.)
 
 ### Quick Install
 
@@ -216,6 +228,47 @@ Name                Developer Name          Id
 ─────────────────── ─────────────────────── ──────────────────
 Business Account    Business_Account        0124J000000XXXXABC
 Person Account      PersonAccount           0124J000000YYYYDEF
+...
+```
+
+### sf raven object display validationrules
+
+Show Validation Rule information for a given sObject.
+
+```
+USAGE
+  $ sf raven object display validationrules -o <value> -s <value> [--json] [-c <value>] [-a]
+
+FLAGS
+  -a, --active              Only show active validation rules.
+  -c, --csv=<value>         Path to write Validation Rule information as CSV. When supplied, table output is suppressed.
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+  -s, --sobject=<value>     (required) The API name of the sObject to view Validation Rules for. Use a comma-delimited list to query multiple objects.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Show Validation Rule information for a given sObject.
+
+  Validation Rules are queried for the given sObject. The rule Name, Active status, Description, and Error Message are displayed.
+
+EXAMPLES
+  $ sf raven object display validationrules --target-org dev --sobject Account
+
+  $ sf raven object display validationrules --target-org dev --sobject My_Custom_Object__c
+
+  $ sf raven object display validationrules --target-org dev --sobject Account,Contact
+
+  $ sf raven object display validationrules --target-org dev --sobject Account --csv account-validation-rules.csv
+
+
+OUTPUT
+
+Name                     Active  Description                       Error Message
+──────────────────────── ─────── ───────────────────────────────── ─────────────────────────────
+Require_Account_Number   true    Account Number required to close  Account Number is required
+Valid_Billing_Country    false   Billing country must be ISO code  Enter a valid billing country
 ...
 ```
 
@@ -488,6 +541,77 @@ DESCRIPTION
 
 EXAMPLES
   $ sf raven pull remote type remove
+```
+
+### sf raven profile sync
+
+Sync full Profile metadata from an org into local source files.
+
+```
+USAGE
+  $ sf raven profile sync -o <value> [--json] [-p <value>...] [--dry-run]
+
+FLAGS
+  -o, --target-org=<value>  (required) Username or alias of the target org.
+  -p, --profile=<value>...  Comma-separated names of the profiles to sync. Defaults to every profile tracked in local source.
+      --dry-run             Report what a sync would change without writing any files, and exit non-zero if any profile differs from the org or could not be checked.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Reads the complete content of each Profile directly from the org via the CRUD Metadata API, which is not package-context-scoped, filters it down to the components tracked in local source, and overwrites the tracked profile files in place, wherever they live across package directories. The output is byte-identical to what a full-project `sf project retrieve` would produce for the profiles, in a fraction of the time. With no arguments, every profile tracked in local source is synced; profiles are fetched in parallel batches, and profiles that exist locally but not in the org are skipped with a warning. Entries that reference metadata not present in the local project are filtered out; user permissions, login IP ranges, the custom flag, and the user license are always kept in full. The org read uses the project's sourceApiVersion.
+
+  Each synced profile is reported with a per-section summary of entries added, removed, and modified. With --dry-run, no files are written: the command prints the changes a sync would make and exits non-zero if any profile differs from the org (or could not be read from it), so CI can detect profiles changed directly in the org.
+
+EXAMPLES
+  $ sf raven profile sync
+
+  $ sf raven profile sync --profile "Admin,Standard User"
+
+  $ sf raven profile sync --profile Admin --target-org my-org
+
+  $ sf raven profile sync --dry-run
+
+
+OUTPUT
+
+Synced Admin -> force-app/main/default/profiles/Admin.profile-meta.xml
+    fieldPermissions: 2 added, 1 modified
+    userPermissions: 1 modified
+Standard User is already up to date.
+```
+
+### sf raven profile sync select
+
+Interactively pick org profiles to sync into local source, including profiles not yet tracked.
+
+```
+USAGE
+  $ sf raven profile sync select -o <value> [--json]
+
+FLAGS
+  -o, --target-org=<value>  (required) Username or alias of the target org.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Lists every profile in the target org, alongside every profile tracked in local source, in a multi-select fuzzy picker (requires fzf). Each profile is annotated with its status: "both" (tracked locally and in the org), "remote" (org only), or "local" (local source only). Selected profiles that are tracked locally are refreshed in place through the same pipeline as "sf raven profile sync". Selected profiles that exist only in the org are adopted: a new profile file is created in the default package directory's profiles folder, filtered to the components tracked in local source and serialized identically to synced profiles. Selected local-only profiles are skipped with a warning, and cancelling the picker makes no changes.
+
+EXAMPLES
+  $ sf raven profile sync select
+
+  $ sf raven profile sync select --target-org my-org
+
+
+OUTPUT
+
+Synced Admin -> force-app/main/default/profiles/Admin.profile-meta.xml
+    classAccesses: 1 added
+Created Read Only -> force-app/main/default/profiles/Read Only.profile-meta.xml
+    fieldPermissions: 42 added
+    userPermissions: 18 added
 ```
 
 ### sf raven deploy cancel
