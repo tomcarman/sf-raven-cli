@@ -23,7 +23,8 @@ coverage
 test_session*
 
 # generated docs
-docs
+docs/*
+!docs/agents
 
 # ignore sfdx-trust files
 *.tgz
