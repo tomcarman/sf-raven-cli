@@ -610,6 +610,28 @@ describe('profile sync', () => {
     assert.ok(readFileSync(adoptedPath, 'utf8').includes('<custom>false</custom>'));
   });
 
+  it('adopts alongside existing tracked profiles when they live outside the conventional folder', async () => {
+    const projectRoot = trackProject(mkdtempSync(join(tmpdir(), 'sf-raven-profile-sync-test-')));
+    writeFileSync(
+      join(projectRoot, 'sfdx-project.json'),
+      JSON.stringify({ packageDirectories: [{ path: 'force-app', default: true }], sourceApiVersion: '61.0' }, null, 2)
+    );
+    const profilesDir = join(projectRoot, 'force-app', 'main', 'profiles');
+    mkdirSync(profilesDir, { recursive: true });
+    writeFileSync(join(profilesDir, 'Admin.profile-meta.xml'), staleProfileXml);
+
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Read Only'],
+      readProfiles: readerFor([{ fullName: 'Read Only', custom: 'false' }]),
+      adoptUntracked: true,
+    });
+
+    const adoptedPath = join(profilesDir, 'Read Only.profile-meta.xml');
+    assert.equal(result.synced[0].path, adoptedPath);
+    assert.ok(readFileSync(adoptedPath, 'utf8').includes('<custom>false</custom>'));
+  });
+
   it('does not create an adopted profile file in dry-run mode', async () => {
     const projectRoot = trackProject(createProject());
 

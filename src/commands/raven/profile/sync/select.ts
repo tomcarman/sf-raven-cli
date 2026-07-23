@@ -1,7 +1,7 @@
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import { syncProfiles, type ProfileSyncResult } from '../../../../shared/profileSync.js';
-import { getComponentInventory, selectItems } from '../../../../shared/pull.js';
+import { getComponentInventory, selectItems, type PullListComponent } from '../../../../shared/pull.js';
 import { createProfileReader, displaySyncResult, getSourceApiVersion } from '../sync.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -67,7 +67,7 @@ export default class RavenProfileSyncSelect extends SfCommand<RavenProfileSyncSe
   }
 }
 
-const selectProfiles = async (components: Array<{ name: string; status: string }>): Promise<string[]> => {
+const selectProfiles = async (components: PullListComponent[]): Promise<string[]> => {
   const namesByItem = new Map(components.map((component) => [`${component.name} (${component.status})`, component.name]));
   const selectedItems = await selectItems(Array.from(namesByItem.keys()));
 

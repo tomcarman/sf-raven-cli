@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { XMLBuilder, XMLParser } from 'fast-xml-parser';
 import { ensureArray } from '@salesforce/kit';
 import { SourceComponent, type MetadataComponent } from '@salesforce/source-deploy-retrieve';
@@ -51,6 +51,12 @@ export type ProfileSyncResult = {
 
 type ProfileEntry = Record<string, unknown>;
 
+type ProfileTarget = {
+  profileName: string;
+  profilePath: string;
+  adopted: boolean;
+};
+
 type ComponentInventory = Map<string, Set<string>>;
 
 type SectionRule = {
@@ -69,9 +75,7 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
   const trackedProfilePaths = getTrackedProfilePaths(localComponents);
   const profileNames = options.profileNames ?? Array.from(trackedProfilePaths.keys()).sort(compareAscii);
 
-  const adoptionDir = options.adoptUntracked
-    ? join(options.projectRoot, getDefaultPackageDirectoryPath(options.projectRoot), 'main', 'default', 'profiles')
-    : undefined;
+  const adoptionDir = options.adoptUntracked ? getAdoptionDir(options.projectRoot, trackedProfilePaths) : undefined;
 
   const profileTargets = profileNames.map((profileName): ProfileTarget => {
     const trackedPath = trackedProfilePaths.get(profileName);
@@ -133,12 +137,6 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
   return result;
 };
 
-type ProfileTarget = {
-  profileName: string;
-  profilePath: string;
-  adopted: boolean;
-};
-
 const readProfilesInBatches = async (
   profileNames: string[],
   readProfiles: ProfileReader
@@ -168,6 +166,20 @@ const readProfilesInBatches = async (
   );
 
   return { orgProfiles, failures };
+};
+
+// Adopted profiles join the folder the default package directory's tracked profiles already
+// use, falling back to the conventional main/default/profiles when it has none.
+const getAdoptionDir = (projectRoot: string, trackedProfilePaths: Map<string, string>): string => {
+  const defaultPackagePath = join(projectRoot, getDefaultPackageDirectoryPath(projectRoot));
+
+  for (const profilePath of trackedProfilePaths.values()) {
+    if (dirname(profilePath).startsWith(defaultPackagePath + sep)) {
+      return dirname(profilePath);
+    }
+  }
+
+  return join(defaultPackagePath, 'main', 'default', 'profiles');
 };
 
 const getTrackedProfilePaths = (localComponents: MetadataComponent[]): Map<string, string> => {
