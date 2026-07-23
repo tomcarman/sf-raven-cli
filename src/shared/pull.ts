@@ -437,7 +437,7 @@ const getLocalMetadataTypeCounts = (projectRoot: string): Map<string, number> =>
 
 const formatMetadataName = (metadataType: string, fullName: string): string => `${metadataType}:${fullName}`;
 
-const getLocalMetadataComponents = (projectRoot: string): MetadataComponent[] => {
+export const getLocalMetadataComponents = (projectRoot: string): MetadataComponent[] => {
   const sourcePaths = getExistingPackageDirectoryPaths(projectRoot).map((packageDirectoryPath) => join(projectRoot, packageDirectoryPath));
 
   if (sourcePaths.length === 0) {

@@ -12,6 +12,7 @@
     "@salesforce/ts-types": "^2.0.10",
     "chalk": "^4.1.2",
     "dayjs": "^1.11.20",
+    "fast-xml-parser": "^5.7.3",
     "jsforce": "^3.3.1",
     "node-emoji": "^2.1.3"
   },
@@ -130,6 +131,14 @@
             "subtopics": {
               "cancel": {
                 "description": "Cancel a pending or in-progress Salesforce deploy."
+              }
+            }
+          },
+          "profile": {
+            "description": "Commands relating to Profiles.",
+            "subtopics": {
+              "sync": {
+                "description": "Sync full Profile metadata from an org into local source."
               }
             }
           },
