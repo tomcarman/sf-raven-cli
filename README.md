@@ -119,7 +119,8 @@ Assuming you already have the [sf cli](https://developer.salesforce.com/tools/sa
 
 Note: You'll be prompted that this is not officially code-signed by Salesforce - like any custom plugin. You can just accept this when prompted, or alternatively you can [whitelist it](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_allowlist.htm)
 
-If you previously installed the package as `sf-raven`, migrate to the renamed package with:
+> [!WARNING]
+> If you previously installed the package as `sf-raven`, migrate to the renamed package with:
 
 ```sh
 sf plugins uninstall sf-raven
