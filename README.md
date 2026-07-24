@@ -30,6 +30,7 @@
   * [sf raven profile sync select](#sf-raven-profile-sync-select)
   * [sf raven deploy cancel](#sf-raven-deploy-cancel)
   * [sf raven query ids](#sf-raven-query-ids)
+  * [sf raven query record](#sf-raven-query-record)
   * [sf raven audit display](#sf-raven-audit-display)
   * [sf raven event subscribe](#sf-raven-event-subscribe)
   * [sf raven apex log](#sf-raven-apex-log)
@@ -75,6 +76,8 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 
 - [sf raven query ids](#sf-raven-query-ids)
   - Run a SOQL query against a large list of Salesforce IDs.
+- [sf raven query record](#sf-raven-query-record)
+  - Fetch any record by id with full-field output.
 
 **sf raven apex**
 
@@ -678,6 +681,30 @@ EXAMPLES
   $ sf raven query ids --file account-ids.txt --query "SELECT Id, Name FROM Account WHERE Id IN {ids}" --limit 25
 
   $ sf raven query ids --file account-ids.txt --query "SELECT Id, Name FROM Account WHERE Id IN {ids}" --csv results.csv
+```
+
+### sf raven query record
+
+Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. Long values are truncated with an ellipsis; null values render as blank cells.
+
+```
+USAGE
+  $ sf raven query record -o <value> -i <value> [--json]
+
+FLAGS
+  -i, --record-ids=<value>  (required) Comma-delimited list of 15 or 18 character record ids to fetch.
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. Long values are truncated with an ellipsis; null values render as blank cells.
+
+EXAMPLES
+  $ sf raven query record --record-ids 001Kf00001aBcDeFGH
+
+  $ sf raven query record --record-ids 001Kf00001aBcDeFGH --json
 ```
 
 ### sf raven audit display
