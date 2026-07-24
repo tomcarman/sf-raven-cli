@@ -709,6 +709,8 @@ DESCRIPTION
 EXAMPLES
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH
 
+  $ sf raven query record --record-ids 001Kf00001aBcDeFGH,001Kf00001aBcDeXYZ
+
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --fields Name,Industry,Owner.Name
 
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --extra-fields Owner.Name,Owner.Profile.Name

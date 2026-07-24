@@ -12,6 +12,10 @@ Fetch every field of a record by id:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH
 
+Compare multiple records of the same object side by side:
+
+<%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH,001Kf00001aBcDeXYZ
+
 Fetch only selected fields, including a parent relationship path:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --fields Name,Industry,Owner.Name
