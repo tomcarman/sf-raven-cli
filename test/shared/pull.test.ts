@@ -75,6 +75,16 @@ const createFakeSfBinary = (directory: string): { binPath: string; argsPath: str
   return { binPath, argsPath };
 };
 
+const createFailingSfBinary = (directory: string, stdout: string): string => {
+  const binPath = join(directory, 'fake-sf-failing');
+  const script = ['#!/usr/bin/env bash', `echo '${stdout}'`, 'exit 1', ''].join('\n');
+
+  writeFileSync(binPath, script);
+  chmodSync(binPath, 0o755);
+
+  return binPath;
+};
+
 describe('pull list inventory', () => {
   const projectRoots: string[] = [];
   const originalSfBinPath = process.env.SF_BINPATH;
@@ -162,6 +172,28 @@ describe('pull list inventory', () => {
 
       assert.match(readFileSync(argsPath, 'utf8'), /--target-org my-org/);
     });
+
+    it('surfaces the sf CLI error when the command fails', async () => {
+      const projectRoot = trackProject(createProject());
+      process.env.SF_BINPATH = createFailingSfBinary(
+        projectRoot,
+        '{"name":"NoDefaultEnvError","message":"No default environment found. Use -o or --target-org to specify an environment.","status":1}'
+      );
+
+      await assert.rejects(getOrgTypeInventory(), (error: Error) => {
+        assert.equal(error.name, 'NoDefaultEnvError');
+        assert.match(error.message, /No default environment found/);
+        assert.match(error.message, /sf org list metadata-types --json/);
+        return true;
+      });
+    });
+
+    it('reports the exit code when the sf CLI fails without JSON output', async () => {
+      const projectRoot = trackProject(createProject());
+      process.env.SF_BINPATH = createFailingSfBinary(projectRoot, 'not json');
+
+      await assert.rejects(getOrgTypeInventory(), /failed with exit code 1/);
+    });
   });
 
   describe('getComponentInventory', () => {
@@ -190,6 +222,20 @@ describe('pull list inventory', () => {
       await getComponentInventory(projectRoot, 'ApexClass', 'my-org');
 
       assert.match(readFileSync(argsPath, 'utf8'), /--target-org my-org/);
+    });
+
+    it('surfaces the sf CLI error when the command fails', async () => {
+      const projectRoot = trackProject(createProject());
+      process.env.SF_BINPATH = createFailingSfBinary(
+        projectRoot,
+        '{"name":"NoDefaultEnvError","message":"No default environment found. Use -o or --target-org to specify an environment.","status":1}'
+      );
+
+      await assert.rejects(getComponentInventory(projectRoot, 'ApexClass'), (error: Error) => {
+        assert.equal(error.name, 'NoDefaultEnvError');
+        assert.match(error.message, /No default environment found/);
+        return true;
+      });
     });
   });
 });

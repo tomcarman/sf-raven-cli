@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { SfProject } from '@salesforce/core';
+import { SfError, SfProject } from '@salesforce/core';
 import { ComponentSet, type MetadataComponent } from '@salesforce/source-deploy-retrieve';
 
 export type SelectedMetadata = {
@@ -152,9 +152,7 @@ export const listOrgMetadataTypes = async (targetOrg?: string): Promise<string[]
     stderr: 'pipe',
   });
 
-  if (result.exitCode !== 0) {
-    return [];
-  }
+  throwIfSfCommandFailed(args, result);
 
   if (!result.stdout.trim()) {
     return [];
@@ -283,9 +281,7 @@ const listOrgMetadata = async (metadataType: string, targetOrg?: string): Promis
     stderr: 'pipe',
   });
 
-  if (result.exitCode !== 0) {
-    return [];
-  }
+  throwIfSfCommandFailed(args, result);
 
   if (!result.stdout.trim()) {
     return [];
@@ -308,6 +304,28 @@ const runRetrieveCommand = async (args: string[]): Promise<number> => {
   });
 
   return result.exitCode;
+};
+
+const throwIfSfCommandFailed = (args: string[], result: ChildProcessResult): void => {
+  if (result.exitCode === 0) {
+    return;
+  }
+
+  let sfError: { name?: string; message?: string } | undefined;
+
+  try {
+    sfError = JSON.parse(result.stdout) as { name?: string; message?: string };
+  } catch {
+    sfError = undefined;
+  }
+
+  const command = ['sf', ...args].join(' ');
+
+  if (sfError?.message != null && sfError.message.length > 0) {
+    throw new SfError(`'${command}' failed: ${sfError.message}`, sfError.name);
+  }
+
+  throw new SfError(`'${command}' failed with exit code ${result.exitCode}.`);
 };
 
 const runSfCommand = async (

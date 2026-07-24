@@ -30,8 +30,14 @@ export default class RavenProfileSyncSelect extends SfCommand<RavenProfileSyncSe
     const emptyResult: ProfileSyncResult = { synced: [], skipped: [], failed: [], dryRun: false, drifted: false };
 
     this.spinner.start(messages.getMessage('info.listing'));
-    const inventory = await getComponentInventory(projectRoot, 'Profile', targetOrg.getUsername());
-    this.spinner.stop();
+
+    let inventory;
+
+    try {
+      inventory = await getComponentInventory(projectRoot, 'Profile', targetOrg.getUsername());
+    } finally {
+      this.spinner.stop();
+    }
 
     if (inventory.components.length === 0) {
       this.warn(messages.getMessage('warning.noProfiles'));
