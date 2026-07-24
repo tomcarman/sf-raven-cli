@@ -1,6 +1,14 @@
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { formatRecordTable, queryRecords, type RecordQueryConnection, type RecordQueryResult } from '../../../shared/recordQuery.js';
+import {
+  formatRecordCsv,
+  formatRecordJson,
+  formatRecordTable,
+  formatRecordToon,
+  queryRecords,
+  type RecordQueryConnection,
+  type RecordQueryResult,
+} from '../../../shared/recordQuery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.record');
@@ -38,6 +46,12 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
       char: 'e',
       exclusive: ['fields'],
     }),
+    format: Flags.option({
+      summary: messages.getMessage('flags.format.summary'),
+      char: 'F',
+      options: ['table', 'json', 'csv', 'toon'] as const,
+      default: 'table',
+    })(),
   };
 
   public async run(): Promise<QueryRecordResult> {
@@ -59,7 +73,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
       this.spinner.stop();
     }
 
-    ux.log(formatRecordTable(result));
+    ux.log(formatRecordOutput(result, flags.format));
 
     if (result.idsNotFound.length > 0) {
       this.warn(messages.getMessage('warning.recordsNotFound', [result.idsNotFound.join(', ')]));
@@ -73,3 +87,16 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
     };
   }
 }
+
+const formatRecordOutput = (result: RecordQueryResult, format: 'table' | 'json' | 'csv' | 'toon'): string => {
+  switch (format) {
+    case 'json':
+      return formatRecordJson(result);
+    case 'csv':
+      return formatRecordCsv(result);
+    case 'toon':
+      return formatRecordToon(result);
+    default:
+      return formatRecordTable(result);
+  }
+};

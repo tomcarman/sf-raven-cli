@@ -10,6 +10,7 @@
     "@salesforce/sf-plugins-core": "^11.3.12",
     "@salesforce/source-deploy-retrieve": "^12.36.1",
     "@salesforce/ts-types": "^2.0.10",
+    "@toon-format/toon": "^4.0.0",
     "chalk": "^4.1.2",
     "dayjs": "^1.11.20",
     "fast-xml-parser": "^5.7.3",

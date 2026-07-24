@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import {
+  formatRecordCsv,
+  formatRecordJson,
   formatRecordTable,
+  formatRecordToon,
   queryRecords,
   type RecordQueryConnection,
   type RecordQueryResult,
@@ -480,6 +483,127 @@ describe('record query', () => {
 
       assert.ok(table.includes(longValue));
       assert.ok(!table.includes('…'));
+    });
+  });
+
+  describe('formatRecordJson', () => {
+    it('renders the raw records array with no envelope', () => {
+      const json = formatRecordJson(baseResult());
+
+      assert.deepEqual(JSON.parse(json), [{ Id: accountId, Name: 'Acme' }]);
+      assert.ok(json.startsWith('['));
+    });
+
+    it('preserves the nested relationship shape', () => {
+      const json = formatRecordJson(
+        baseResult({
+          fields: ['Id', 'Name', 'Owner.Name'],
+          records: [{ Id: accountId, Name: 'Acme', Owner: { Name: 'Jane' } }],
+        })
+      );
+
+      assert.deepEqual(JSON.parse(json), [{ Id: accountId, Name: 'Acme', Owner: { Name: 'Jane' } }]);
+    });
+
+    it('never truncates long values', () => {
+      const longValue = 'x'.repeat(200);
+      const json = formatRecordJson(baseResult({ records: [{ Id: accountId, Name: longValue }] }));
+
+      assert.ok(json.includes(longValue));
+      assert.ok(!json.includes('…'));
+    });
+  });
+
+  describe('formatRecordCsv', () => {
+    it('renders records as rows with one column per field', () => {
+      const csv = formatRecordCsv(
+        baseResult({
+          idsRequested: [accountId, otherAccountId],
+          idsFound: [accountId, otherAccountId],
+          records: [
+            { Id: accountId, Name: 'Acme' },
+            { Id: otherAccountId, Name: 'Globex' },
+          ],
+        })
+      );
+
+      assert.equal(csv, ['Id,Name', `${accountId},Acme`, `${otherAccountId},Globex`].join('\n'));
+    });
+
+    it('escapes values containing commas, quotes, and newlines', () => {
+      const csv = formatRecordCsv(
+        baseResult({
+          records: [{ Id: accountId, Name: 'Acme, "The" Corp\nLtd' }],
+        })
+      );
+
+      assert.equal(csv, ['Id,Name', `${accountId},"Acme, ""The"" Corp\nLtd"`].join('\n'));
+    });
+
+    it('resolves dot-notation paths into their nested values', () => {
+      const csv = formatRecordCsv(
+        baseResult({
+          fields: ['Id', 'Name', 'Owner.Name'],
+          records: [{ Id: accountId, Name: 'Acme', Owner: { Name: 'Jane' } }],
+        })
+      );
+
+      assert.equal(csv, ['Id,Name,Owner.Name', `${accountId},Acme,Jane`].join('\n'));
+    });
+
+    it('renders null values and null relationship parents as empty cells', () => {
+      const csv = formatRecordCsv(
+        baseResult({
+          fields: ['Id', 'Name', 'Owner.Name'],
+          records: [{ Id: accountId, Name: null, Owner: null }],
+        })
+      );
+
+      assert.equal(csv, ['Id,Name,Owner.Name', `${accountId},,`].join('\n'));
+    });
+
+    it('never truncates long values', () => {
+      const longValue = 'x'.repeat(200);
+      const csv = formatRecordCsv(baseResult({ records: [{ Id: accountId, Name: longValue }] }));
+
+      assert.ok(csv.includes(longValue));
+      assert.ok(!csv.includes('…'));
+    });
+  });
+
+  describe('formatRecordToon', () => {
+    it('encodes the records array as TOON', () => {
+      const toon = formatRecordToon(
+        baseResult({
+          idsRequested: [accountId, otherAccountId],
+          idsFound: [accountId, otherAccountId],
+          records: [
+            { Id: accountId, Name: 'Acme' },
+            { Id: otherAccountId, Name: 'Globex' },
+          ],
+        })
+      );
+
+      assert.equal(toon, [`[2]{Id,Name}:`, `  ${accountId},Acme`, `  ${otherAccountId},Globex`].join('\n'));
+    });
+
+    it('encodes nested relationship values', () => {
+      const toon = formatRecordToon(
+        baseResult({
+          fields: ['Id', 'Name', 'Owner.Name'],
+          records: [{ Id: accountId, Name: 'Acme', Owner: { Name: 'Jane' } }],
+        })
+      );
+
+      assert.equal(toon, ['[1]{Id,Name,Owner{Name}}:', `  ${accountId},Acme,Jane`].join('\n'));
+    });
+
+    it('never truncates long values', () => {
+      const longValue = 'x'.repeat(200);
+      const toon = formatRecordToon(baseResult({ records: [{ Id: accountId, Name: longValue }] }));
+
+      assert.ok(toon.includes(longValue));
+      assert.ok(!toon.includes('…'));
     });
   });
 });

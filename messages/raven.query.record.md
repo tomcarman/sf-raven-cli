@@ -20,6 +20,14 @@ Fetch every field plus selected parent relationship paths:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --extra-fields Owner.Name,Owner.Profile.Name
 
+Fetch a record as csv for a spreadsheet:
+
+<%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --format csv
+
+Fetch a record TOON-encoded for an LLM context:
+
+<%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --format toon
+
 Fetch a record as JSON:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --json
@@ -39,6 +47,10 @@ Comma-delimited list of fields to retrieve instead of the full field list; dot-n
 # flags.extra-fields.summary
 
 Comma-delimited list of fields (typically relationship paths) to add on top of the full field list.
+
+# flags.format.summary
+
+Output format: table (transposed, for the terminal), json (raw records array), csv (one row per record), or toon (TOON-encoded records array). Non-table formats never truncate values.
 
 # info.fetching
 

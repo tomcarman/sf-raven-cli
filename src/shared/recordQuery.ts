@@ -1,4 +1,5 @@
-import { isValidSalesforceId } from './query.js';
+import { encode } from '@toon-format/toon';
+import { escapeCsvValue, isValidSalesforceId } from './query.js';
 
 export type RecordQueryConnection = {
   describeGlobal: () => Promise<{ sobjects: Array<{ name: string; keyPrefix?: string | null }> }>;
@@ -70,6 +71,19 @@ export const formatRecordTable = (result: RecordQueryResult, options: RecordTabl
     .map((row) => row.map((cell, columnIndex) => cell.padEnd(widths[columnIndex])).join(columnGap).trimEnd())
     .join('\n');
 };
+
+export const formatRecordJson = (result: RecordQueryResult): string => JSON.stringify(result.records, null, 2);
+
+export const formatRecordCsv = (result: RecordQueryResult): string => {
+  const header = result.fields.map(escapeCsvValue).join(',');
+  const rows = result.records.map((record) =>
+    result.fields.map((field) => escapeCsvValue(resolveFieldValue(record, field))).join(',')
+  );
+
+  return [header, ...rows].join('\n');
+};
+
+export const formatRecordToon = (result: RecordQueryResult): string => encode(result.records);
 
 const parseRecordIds = (recordIds: string): string[] => {
   const ids = recordIds
