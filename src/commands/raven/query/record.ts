@@ -68,7 +68,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
     const connection = flags['target-org'].getConnection() as unknown as RecordQueryConnection;
 
-    this.spinner.start(messages.getMessage('info.fetching'));
+    ux.spinner.start(messages.getMessage('info.fetching'));
 
     let result: RecordQueryResult;
 
@@ -79,7 +79,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
         extraFields: flags['extra-fields'],
       });
     } finally {
-      this.spinner.stop();
+      ux.spinner.stop();
     }
 
     ux.log(formatRecordOutput(result, flags.format, { truncate: flags.truncate, omitNull: flags['omit-null'] }));
