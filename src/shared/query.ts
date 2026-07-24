@@ -19,3 +19,6 @@ export const escapeCsvValue = (value: unknown): string => {
 };
 
 export const getEncodedQueryLength = (query: string): number => Buffer.byteLength(encodeURIComponent(query), 'utf8');
+
+export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value != null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);

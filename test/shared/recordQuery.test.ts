@@ -706,6 +706,25 @@ describe('record query', () => {
       assert.ok(!table.includes('abcdef…'));
     });
 
+    it('keeps the full 18-character record ids in the header when truncate is below 18', () => {
+      const table = formatRecordTable(
+        baseResult({
+          idsRequested: [accountId, otherAccountId],
+          idsFound: [accountId, otherAccountId],
+          records: [
+            { Id: accountId, Name: 'Acme' },
+            { Id: otherAccountId, Name: 'Globex' },
+          ],
+        }),
+        { truncate: 10 }
+      );
+
+      const [header] = table.split('\n');
+      assert.ok(header.includes(accountId));
+      assert.ok(header.includes(otherAccountId));
+      assert.ok(!header.includes('…'));
+    });
+
     it('renders dot-notation paths as rows keyed by the path', () => {
       const table = formatRecordTable(
         baseResult({

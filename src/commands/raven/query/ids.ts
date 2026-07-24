@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { escapeCsvValue, getEncodedQueryLength, isValidSalesforceId, maxEncodedQueryLength } from '../../../shared/query.js';
+import { escapeCsvValue, getEncodedQueryLength, isPlainObject, isValidSalesforceId, maxEncodedQueryLength } from '../../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.ids');
@@ -268,9 +268,6 @@ const flattenValue = (value: unknown, prefix: string): QueryRecord => {
     };
   }
 };
-
-const isPlainObject = (value: unknown): value is QueryRecord =>
-  value != null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);
 
 const renderTable = (ux: Ux, records: QueryRecord[]): void => {
   if (records.length === 0) {

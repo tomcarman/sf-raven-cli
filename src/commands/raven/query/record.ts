@@ -14,12 +14,10 @@ import {
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.record');
 
-export type QueryRecordResult = {
-  sobject: string;
-  idsRequested: string[];
-  idsFound: string[];
-  records: Array<Record<string, unknown>>;
-};
+export type QueryRecordResult = Pick<RecordQueryResult, 'sobject' | 'idsRequested' | 'idsFound' | 'records'>;
+
+const recordFormats = ['table', 'json', 'csv', 'toon'] as const;
+type RecordFormat = (typeof recordFormats)[number];
 
 export default class QueryRecord extends SfCommand<QueryRecordResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -50,7 +48,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
     format: Flags.option({
       summary: messages.getMessage('flags.format.summary'),
       char: 'F',
-      options: ['table', 'json', 'csv', 'toon'] as const,
+      options: recordFormats,
       default: 'table',
     })(),
     truncate: Flags.integer({
@@ -101,7 +99,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
 
 const formatRecordOutput = (
   result: RecordQueryResult,
-  format: 'table' | 'json' | 'csv' | 'toon',
+  format: RecordFormat,
   tableOptions: RecordTableOptions
 ): string => {
   switch (format) {

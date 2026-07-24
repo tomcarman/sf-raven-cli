@@ -1,5 +1,9 @@
+import { Messages } from '@salesforce/core';
 import { encode } from '@toon-format/toon';
-import { escapeCsvValue, getEncodedQueryLength, isValidSalesforceId, maxEncodedQueryLength } from './query.js';
+import { escapeCsvValue, getEncodedQueryLength, isPlainObject, isValidSalesforceId, maxEncodedQueryLength } from './query.js';
+
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
+const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.record');
 
 type RecordQueryApi = {
   describeGlobal: () => Promise<{ sobjects: Array<{ name: string; keyPrefix?: string | null }> }>;
@@ -76,7 +80,7 @@ export const formatRecordTable = (result: RecordQueryResult, options: RecordTabl
   const fields = options.omitNull
     ? result.fields.filter((field) => result.records.some((record) => resolveFieldValue(record, field) != null))
     : result.fields;
-  const header = ['Field', ...result.records.map((record) => formatCell(record.Id, truncate))];
+  const header = ['Field', ...result.records.map((record) => formatCell(record.Id, 0))];
   const rows = fields.map((field) => [
     field,
     ...result.records.map((record) => formatCell(resolveFieldValue(record, field), truncate)),
@@ -110,13 +114,13 @@ const parseRecordIds = (recordIds: string): string[] => {
     .filter((id) => id.length > 0);
 
   if (ids.length === 0) {
-    throw new Error('No record ids were supplied.');
+    throw messages.createError('error.noRecordIds');
   }
 
   const invalidIds = ids.filter((id) => !isValidSalesforceId(id));
 
   if (invalidIds.length > 0) {
-    throw new Error(`Invalid Salesforce record id(s): ${invalidIds.join(', ')}. Ids must be 15 or 18 alphanumeric characters.`);
+    throw messages.createError('error.invalidRecordIds', [invalidIds.join(', ')]);
   }
 
   return ids;
@@ -139,9 +143,7 @@ const detectSObject = async (
     return { api: connection.tooling, sobject: toolingSObject };
   }
 
-  throw new Error(
-    `No object with key prefix '${keyPrefix}' was found in either the regular or Tooling API, so the object type could not be determined.`
-  );
+  throw messages.createError('error.unknownKeyPrefix', [keyPrefix]);
 };
 
 const findSObjectByPrefix = async (api: RecordQueryApi, keyPrefix: string): Promise<string | undefined> => {
@@ -210,7 +212,7 @@ const resolveRequestedFields = (
   }
 
   if (unknown.length > 0) {
-    throw new Error(`Unknown field(s) for ${sobject}: ${unknown.join(', ')}.`);
+    throw messages.createError('error.unknownFields', [sobject, unknown.join(', ')]);
   }
 
   return resolved;
@@ -277,9 +279,6 @@ const stripAttributes = (record: Record<string, unknown>): Record<string, unknow
       .filter(([key]) => key !== 'attributes')
       .map(([key, value]) => [key, isPlainObject(value) ? stripAttributes(value) : value])
   );
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  value != null && typeof value === 'object' && !Array.isArray(value);
 
 const resolveFieldValue = (record: Record<string, unknown>, field: string): unknown =>
   field

@@ -71,3 +71,19 @@ Fetching record(s)...
 # warning.recordsNotFound
 
 No record was found for the following id(s): %s
+
+# error.noRecordIds
+
+No record ids were supplied.
+
+# error.invalidRecordIds
+
+Invalid Salesforce record id(s): %s. Ids must be 15 or 18 alphanumeric characters.
+
+# error.unknownFields
+
+Unknown field(s) for %s: %s.
+
+# error.unknownKeyPrefix
+
+No object with key prefix '%s' was found in either the regular or Tooling API, so the object type could not be determined.
