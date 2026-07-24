@@ -1,5 +1,5 @@
 import { encode } from '@toon-format/toon';
-import { escapeCsvValue, isValidSalesforceId } from './query.js';
+import { escapeCsvValue, getEncodedQueryLength, isValidSalesforceId, maxEncodedQueryLength } from './query.js';
 
 type RecordQueryApi = {
   describeGlobal: () => Promise<{ sobjects: Array<{ name: string; keyPrefix?: string | null }> }>;
@@ -41,11 +41,21 @@ export const queryRecords = async (connection: RecordQueryConnection, options: R
   const { api, sobject } = await detectSObject(connection, idsRequested[0]);
   const fields = await buildFieldList(api, sobject, options);
 
-  const soql = `SELECT ${fields.join(', ')} FROM ${sobject} WHERE Id IN (${idsRequested.map((id) => `'${id}'`).join(', ')})`;
-  const queryResult = await api.query(soql);
-  const recordsByShortId = new Map(
-    queryResult.records.map((record) => [toShortId(String(record.Id)), stripAttributes(record)])
-  );
+  const buildSoql = (chunkFields: string[]): string =>
+    `SELECT ${chunkFields.join(', ')} FROM ${sobject} WHERE Id IN (${idsRequested.map((id) => `'${id}'`).join(', ')})`;
+  const fieldChunks = buildFieldChunks(fields, buildSoql);
+  const chunkResults = await Promise.all(fieldChunks.map((chunkFields) => api.query(buildSoql(chunkFields))));
+
+  const recordsByShortId = new Map<string, Record<string, unknown>>();
+
+  for (const chunkResult of chunkResults) {
+    for (const record of chunkResult.records) {
+      const shortId = toShortId(String(record.Id));
+      const existing = recordsByShortId.get(shortId);
+      const stripped = stripAttributes(record);
+      recordsByShortId.set(shortId, existing == null ? stripped : mergeRecords(existing, stripped));
+    }
+  }
 
   const records = idsRequested
     .map((id) => recordsByShortId.get(toShortId(id)))
@@ -204,6 +214,44 @@ const resolveRequestedFields = (
   }
 
   return resolved;
+};
+
+const buildFieldChunks = (fields: string[], buildSoql: (chunkFields: string[]) => string): string[][] => {
+  if (getEncodedQueryLength(buildSoql(fields)) <= maxEncodedQueryLength) {
+    return [fields];
+  }
+
+  const [idField, ...remainingFields] = fields;
+  const chunks: string[][] = [];
+  let currentChunk: string[] = [];
+
+  for (const field of remainingFields) {
+    const candidateChunk = [...currentChunk, field];
+
+    if (currentChunk.length > 0 && getEncodedQueryLength(buildSoql([idField, ...candidateChunk])) > maxEncodedQueryLength) {
+      chunks.push([idField, ...currentChunk]);
+      currentChunk = [field];
+    } else {
+      currentChunk = candidateChunk;
+    }
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push([idField, ...currentChunk]);
+  }
+
+  return chunks.length > 0 ? chunks : [fields];
+};
+
+const mergeRecords = (base: Record<string, unknown>, addition: Record<string, unknown>): Record<string, unknown> => {
+  const merged = { ...base };
+
+  for (const [key, value] of Object.entries(addition)) {
+    const existing = merged[key];
+    merged[key] = isPlainObject(existing) && isPlainObject(value) ? mergeRecords(existing, value) : value;
+  }
+
+  return merged;
 };
 
 const dedupeFields = (fields: string[]): string[] => {

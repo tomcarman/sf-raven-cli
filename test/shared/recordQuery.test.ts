@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { getEncodedQueryLength, maxEncodedQueryLength } from '../../src/shared/query.js';
 import {
   formatRecordCsv,
   formatRecordJson,
@@ -82,6 +83,47 @@ const createFakeConnection = ({
         return Promise.resolve({ records: toolingRecords.map((record) => ({ ...record })) });
       },
     },
+  };
+
+  return connection;
+};
+
+const selectedFields = (soql: string): string[] => soql.slice('SELECT '.length, soql.indexOf(' FROM ')).split(', ');
+
+const projectRecord = (record: Record<string, unknown>, fields: string[]): Record<string, unknown> => {
+  const projected: Record<string, unknown> = { attributes: { type: 'Account', url: '/services/data' } };
+
+  for (const field of fields) {
+    const segments = field.split('.');
+    const value = segments.reduce<unknown>(
+      (current, segment) =>
+        current != null && typeof current === 'object' ? (current as Record<string, unknown>)[segment] : undefined,
+      record
+    );
+    let target = projected;
+
+    for (const segment of segments.slice(0, -1)) {
+      if (target[segment] == null || typeof target[segment] !== 'object') {
+        target[segment] = {};
+      }
+
+      target = target[segment] as Record<string, unknown>;
+    }
+
+    target[segments[segments.length - 1]] = value;
+  }
+
+  return projected;
+};
+
+const createProjectingConnection = (
+  describeFields: Array<{ name: string; type: string }>,
+  fullRecords: Array<Record<string, unknown>>
+): FakeConnection => {
+  const connection = createFakeConnection({ fields: describeFields });
+  connection.query = (soql: string) => {
+    connection.queries.push(soql);
+    return Promise.resolve({ records: fullRecords.map((record) => projectRecord(record, selectedFields(soql))) });
   };
 
   return connection;
@@ -454,6 +496,126 @@ describe('record query', () => {
       );
 
       assert.deepEqual(connection.queries, []);
+    });
+
+    describe('field chunking', () => {
+      const wideFieldNames = Array.from(
+        { length: 500 },
+        (_, index) => `Very_Long_Custom_Field_Name_${String(index).padStart(3, '0')}__c`
+      );
+      const wideDescribeFields = [
+        { name: 'Id', type: 'id' },
+        ...wideFieldNames.map((name) => ({ name, type: 'string' })),
+      ];
+      const buildWideRecord = (id: string, seed: string): Record<string, unknown> => ({
+        Id: id,
+        ...Object.fromEntries(wideFieldNames.map((name, index) => [name, `${seed}-${index}`])),
+      });
+
+      it('still issues a single query when the encoded query fits within the cap', async () => {
+        const narrowFieldNames = wideFieldNames.slice(0, 50);
+        const connection = createProjectingConnection(
+          [{ name: 'Id', type: 'id' }, ...narrowFieldNames.map((name) => ({ name, type: 'string' }))],
+          [
+            {
+              Id: accountId,
+              ...Object.fromEntries(narrowFieldNames.map((name, index) => [name, `a-${index}`])),
+            },
+          ]
+        );
+
+        await queryRecords(connection, { recordIds: accountId });
+
+        assert.equal(connection.queries.length, 1);
+        assert.ok(getEncodedQueryLength(connection.queries[0]) <= maxEncodedQueryLength);
+      });
+
+      it('splits the field list across multiple queries that each include Id and the full id list', async () => {
+        const connection = createProjectingConnection(wideDescribeFields, [buildWideRecord(accountId, 'a')]);
+
+        const result = await queryRecords(connection, { recordIds: accountId });
+
+        assert.ok(connection.queries.length > 1);
+
+        for (const soql of connection.queries) {
+          assert.ok(getEncodedQueryLength(soql) <= maxEncodedQueryLength);
+          assert.ok(soql.startsWith('SELECT Id, '));
+          assert.ok(soql.endsWith(`FROM Account WHERE Id IN ('${accountId}')`));
+        }
+
+        const queriedFields = connection.queries.flatMap((soql) => selectedFields(soql).slice(1));
+        assert.deepEqual(queriedFields, wideFieldNames);
+        assert.deepEqual(result.fields, ['Id', ...wideFieldNames]);
+      });
+
+      it('packs each chunk up to the cap boundary', async () => {
+        const connection = createProjectingConnection(wideDescribeFields, [buildWideRecord(accountId, 'a')]);
+
+        await queryRecords(connection, { recordIds: accountId });
+
+        for (let index = 0; index < connection.queries.length - 1; index += 1) {
+          const nextChunkFirstField = selectedFields(connection.queries[index + 1])[1];
+          const extended = connection.queries[index].replace(' FROM ', `, ${nextChunkFirstField} FROM `);
+          assert.ok(getEncodedQueryLength(extended) > maxEncodedQueryLength);
+        }
+      });
+
+      it('merges chunked results into records identical to a single query', async () => {
+        const connection = createProjectingConnection(wideDescribeFields, [buildWideRecord(accountId, 'a')]);
+
+        const result = await queryRecords(connection, { recordIds: accountId });
+
+        assert.ok(connection.queries.length > 1);
+        assert.deepEqual(result.records, [buildWideRecord(accountId, 'a')]);
+        assert.deepEqual(Object.keys(result.records[0]), result.fields);
+        assert.deepEqual(result.idsFound, [accountId]);
+        assert.deepEqual(result.idsNotFound, []);
+      });
+
+      it('merges multiple records by id across chunks regardless of return order', async () => {
+        const connection = createProjectingConnection(wideDescribeFields, [
+          buildWideRecord(otherAccountId, 'b'),
+          buildWideRecord(accountId, 'a'),
+        ]);
+
+        const result = await queryRecords(connection, { recordIds: `${accountId},${otherAccountId}` });
+
+        assert.ok(connection.queries.length > 1);
+        assert.deepEqual(result.idsFound, [accountId, otherAccountId]);
+        assert.deepEqual(result.records, [buildWideRecord(accountId, 'a'), buildWideRecord(otherAccountId, 'b')]);
+      });
+
+      it('reports ids that returned no record across chunked queries', async () => {
+        const connection = createProjectingConnection(wideDescribeFields, [buildWideRecord(accountId, 'a')]);
+
+        const result = await queryRecords(connection, { recordIds: `${accountId},${otherAccountId}` });
+
+        assert.ok(connection.queries.length > 1);
+        assert.deepEqual(result.idsFound, [accountId]);
+        assert.deepEqual(result.idsNotFound, [otherAccountId]);
+        assert.deepEqual(result.records, [buildWideRecord(accountId, 'a')]);
+      });
+
+      it('merges relationship fields split across chunks into one nested object', async () => {
+        const connection = createProjectingConnection(wideDescribeFields, [
+          {
+            ...buildWideRecord(accountId, 'a'),
+            Owner: { Name: 'Jane', Email: 'jane@example.com' },
+          },
+        ]);
+
+        const result = await queryRecords(connection, {
+          recordIds: accountId,
+          fields: `Owner.Name,${wideFieldNames.join(',')},Owner.Email`,
+        });
+
+        const queryIndexOf = (field: string): number =>
+          connection.queries.findIndex((soql) => selectedFields(soql).includes(field));
+
+        assert.ok(connection.queries.length > 1);
+        assert.notEqual(queryIndexOf('Owner.Name'), queryIndexOf('Owner.Email'));
+        assert.deepEqual(result.records[0].Owner, { Name: 'Jane', Email: 'jane@example.com' });
+      });
     });
   });
 
