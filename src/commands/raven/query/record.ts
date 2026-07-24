@@ -8,6 +8,7 @@ import {
   queryRecords,
   type RecordQueryConnection,
   type RecordQueryResult,
+  type RecordTableOptions,
 } from '../../../shared/recordQuery.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -52,6 +53,16 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
       options: ['table', 'json', 'csv', 'toon'] as const,
       default: 'table',
     })(),
+    truncate: Flags.integer({
+      summary: messages.getMessage('flags.truncate.summary'),
+      char: 't',
+      default: 80,
+      min: 0,
+    }),
+    'omit-null': Flags.boolean({
+      summary: messages.getMessage('flags.omit-null.summary'),
+      default: false,
+    }),
   };
 
   public async run(): Promise<QueryRecordResult> {
@@ -73,7 +84,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
       this.spinner.stop();
     }
 
-    ux.log(formatRecordOutput(result, flags.format));
+    ux.log(formatRecordOutput(result, flags.format, { truncate: flags.truncate, omitNull: flags['omit-null'] }));
 
     if (result.idsNotFound.length > 0) {
       this.warn(messages.getMessage('warning.recordsNotFound', [result.idsNotFound.join(', ')]));
@@ -88,7 +99,11 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
   }
 }
 
-const formatRecordOutput = (result: RecordQueryResult, format: 'table' | 'json' | 'csv' | 'toon'): string => {
+const formatRecordOutput = (
+  result: RecordQueryResult,
+  format: 'table' | 'json' | 'csv' | 'toon',
+  tableOptions: RecordTableOptions
+): string => {
   switch (format) {
     case 'json':
       return formatRecordJson(result);
@@ -97,6 +112,6 @@ const formatRecordOutput = (result: RecordQueryResult, format: 'table' | 'json' 
     case 'toon':
       return formatRecordToon(result);
     default:
-      return formatRecordTable(result);
+      return formatRecordTable(result, tableOptions);
   }
 };

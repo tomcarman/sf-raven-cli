@@ -24,6 +24,7 @@ export type RecordQueryResult = {
 
 export type RecordTableOptions = {
   truncate?: number;
+  omitNull?: boolean;
 };
 
 const keyPrefixLength = 3;
@@ -58,8 +59,11 @@ export const queryRecords = async (connection: RecordQueryConnection, options: R
 
 export const formatRecordTable = (result: RecordQueryResult, options: RecordTableOptions = {}): string => {
   const truncate = options.truncate ?? defaultTruncateWidth;
+  const fields = options.omitNull
+    ? result.fields.filter((field) => result.records.some((record) => resolveFieldValue(record, field) != null))
+    : result.fields;
   const header = ['Field', ...result.records.map((record) => formatCell(record.Id, truncate))];
-  const rows = result.fields.map((field) => [
+  const rows = fields.map((field) => [
     field,
     ...result.records.map((record) => formatCell(resolveFieldValue(record, field), truncate)),
   ]);

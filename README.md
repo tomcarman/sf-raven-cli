@@ -689,7 +689,7 @@ Detect the object from the record id's key prefix, describe the object to build 
 
 ```
 USAGE
-  $ sf raven query record -o <value> -i <value> [--json] [-f <value> | -e <value>] [-F table|json|csv|toon]
+  $ sf raven query record -o <value> -i <value> [--json] [-f <value> | -e <value>] [-F table|json|csv|toon] [-t <value>] [--omit-null]
 
 FLAGS
   -F, --format=<option>       [default: table] Output format: table (transposed, for the terminal), json (raw records array), csv (one row per record), or toon (TOON-encoded records array). Non-table formats never truncate values. <options: table|json|csv|toon>
@@ -697,6 +697,8 @@ FLAGS
   -f, --fields=<value>        Comma-delimited list of fields to retrieve instead of the full field list; dot-notation relationship paths (e.g. Owner.Name) are allowed.
   -i, --record-ids=<value>    (required) Comma-delimited list of 15 or 18 character record ids to fetch.
   -o, --target-org=<value>    (required) Login username or alias for the target org.
+  -t, --truncate=<value>      [default: 80] Width at which table cell values are truncated with an ellipsis; 0 means unlimited. Table output only.
+      --omit-null             Omit table rows where every record's value is null. Table output only.
 
 GLOBAL FLAGS
   --json  Format output as json.
@@ -710,6 +712,8 @@ EXAMPLES
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --fields Name,Industry,Owner.Name
 
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --extra-fields Owner.Name,Owner.Profile.Name
+
+  $ sf raven query record --record-ids 001Kf00001aBcDeFGH --omit-null --truncate 0
 
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --format csv
 

@@ -475,6 +475,81 @@ describe('record query', () => {
       assert.ok(!table.includes('null'));
     });
 
+    it('keeps all-null rows by default', () => {
+      const table = formatRecordTable(
+        baseResult({
+          fields: ['Id', 'Name', 'Industry'],
+          records: [{ Id: accountId, Name: 'Acme', Industry: null }],
+        })
+      );
+
+      assert.ok(table.includes('Industry'));
+    });
+
+    it('omits rows where the only record value is null when omitNull is set', () => {
+      const table = formatRecordTable(
+        baseResult({
+          fields: ['Id', 'Name', 'Industry'],
+          records: [{ Id: accountId, Name: 'Acme', Industry: null }],
+        }),
+        { omitNull: true }
+      );
+
+      assert.equal(
+        table,
+        [
+          'Field  001Kf00001aBcDeFGH',
+          '-----  ------------------',
+          'Id     001Kf00001aBcDeFGH',
+          'Name   Acme',
+        ].join('\n')
+      );
+    });
+
+    it('keeps rows where at least one record has a value when omitNull is set', () => {
+      const table = formatRecordTable(
+        baseResult({
+          fields: ['Id', 'Name', 'Industry', 'Website'],
+          idsRequested: [accountId, otherAccountId],
+          idsFound: [accountId, otherAccountId],
+          records: [
+            { Id: accountId, Name: 'Acme', Industry: null, Website: null },
+            { Id: otherAccountId, Name: 'Globex', Industry: 'Tech', Website: null },
+          ],
+        }),
+        { omitNull: true }
+      );
+
+      assert.ok(table.includes('Industry'));
+      assert.ok(!table.includes('Website'));
+    });
+
+    it('treats unreachable relationship paths as null for omitNull', () => {
+      const table = formatRecordTable(
+        baseResult({
+          fields: ['Id', 'Name', 'Owner.Name'],
+          records: [{ Id: accountId, Name: 'Acme', Owner: null }],
+        }),
+        { omitNull: true }
+      );
+
+      assert.ok(!table.includes('Owner.Name'));
+    });
+
+    it('does not omit rows whose value is falsy but not null', () => {
+      const table = formatRecordTable(
+        baseResult({
+          fields: ['Id', 'Name', 'IsDeleted', 'NumberOfEmployees'],
+          records: [{ Id: accountId, Name: '', IsDeleted: false, NumberOfEmployees: 0 }],
+        }),
+        { omitNull: true }
+      );
+
+      assert.ok(table.includes('Name'));
+      assert.ok(table.includes('IsDeleted'));
+      assert.ok(table.includes('NumberOfEmployees'));
+    });
+
     it('does not truncate when the width is 0', () => {
       const longValue = 'x'.repeat(100);
       const table = formatRecordTable(baseResult({ records: [{ Id: accountId, Name: longValue }] }), {

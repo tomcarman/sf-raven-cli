@@ -20,6 +20,10 @@ Fetch every field plus selected parent relationship paths:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --extra-fields Owner.Name,Owner.Profile.Name
 
+Fetch a record showing only populated fields, with untruncated values:
+
+<%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --omit-null --truncate 0
+
 Fetch a record as csv for a spreadsheet:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --format csv
@@ -51,6 +55,14 @@ Comma-delimited list of fields (typically relationship paths) to add on top of t
 # flags.format.summary
 
 Output format: table (transposed, for the terminal), json (raw records array), csv (one row per record), or toon (TOON-encoded records array). Non-table formats never truncate values.
+
+# flags.truncate.summary
+
+Width at which table cell values are truncated with an ellipsis; 0 means unlimited. Table output only.
+
+# flags.omit-null.summary
+
+Omit table rows where every record's value is null. Table output only.
 
 # info.fetching
 
