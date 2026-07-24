@@ -8,6 +8,8 @@ export type RecordQueryConnection = {
 
 export type RecordQueryOptions = {
   recordIds: string;
+  fields?: string;
+  extraFields?: string;
 };
 
 export type RecordQueryResult = {
@@ -31,7 +33,7 @@ const columnGap = '  ';
 export const queryRecords = async (connection: RecordQueryConnection, options: RecordQueryOptions): Promise<RecordQueryResult> => {
   const idsRequested = parseRecordIds(options.recordIds);
   const sobject = await detectSObject(connection, idsRequested[0]);
-  const fields = await buildFieldList(connection, sobject);
+  const fields = await buildFieldList(connection, sobject, options);
 
   const soql = `SELECT ${fields.join(', ')} FROM ${sobject} WHERE Id IN (${idsRequested.map((id) => `'${id}'`).join(', ')})`;
   const queryResult = await connection.query(soql);
@@ -56,7 +58,10 @@ export const queryRecords = async (connection: RecordQueryConnection, options: R
 export const formatRecordTable = (result: RecordQueryResult, options: RecordTableOptions = {}): string => {
   const truncate = options.truncate ?? defaultTruncateWidth;
   const header = ['Field', ...result.records.map((record) => formatCell(record.Id, truncate))];
-  const rows = result.fields.map((field) => [field, ...result.records.map((record) => formatCell(record[field], truncate))]);
+  const rows = result.fields.map((field) => [
+    field,
+    ...result.records.map((record) => formatCell(resolveFieldValue(record, field), truncate)),
+  ]);
 
   const widths = header.map((cell, columnIndex) => Math.max(cell.length, ...rows.map((row) => row[columnIndex].length)));
   const divider = widths.map((width) => '-'.repeat(width));
@@ -97,24 +102,104 @@ const detectSObject = async (connection: RecordQueryConnection, id: string): Pro
   return sobject.name;
 };
 
-const buildFieldList = async (connection: RecordQueryConnection, sobject: string): Promise<string[]> => {
+const buildFieldList = async (
+  connection: RecordQueryConnection,
+  sobject: string,
+  options: RecordQueryOptions
+): Promise<string[]> => {
   const describeResult = await connection.describe(sobject);
-  const fields = describeResult.fields
-    .filter((field) => field.queryable !== false && field.type !== 'base64')
-    .map((field) => field.name);
 
-  return ['Id', ...fields.filter((field) => field !== 'Id')];
+  if (options.fields != null) {
+    const requested = resolveRequestedFields(options.fields, describeResult.fields, sobject);
+    return ['Id', ...dedupeFields(requested.filter((field) => field !== 'Id'))];
+  }
+
+  const fullList = [
+    'Id',
+    ...describeResult.fields
+      .filter((field) => field.queryable !== false && field.type !== 'base64')
+      .map((field) => field.name)
+      .filter((field) => field !== 'Id'),
+  ];
+
+  if (options.extraFields != null) {
+    const known = new Set(fullList.map((field) => field.toLowerCase()));
+    const extras = resolveRequestedFields(options.extraFields, describeResult.fields, sobject).filter(
+      (field) => !known.has(field.toLowerCase())
+    );
+    return [...fullList, ...dedupeFields(extras)];
+  }
+
+  return fullList;
+};
+
+const resolveRequestedFields = (
+  rawFields: string,
+  describeFields: Array<{ name: string }>,
+  sobject: string
+): string[] => {
+  const requested = rawFields
+    .split(',')
+    .map((field) => field.trim())
+    .filter((field) => field.length > 0);
+
+  const canonicalByLowerName = new Map(describeFields.map((field) => [field.name.toLowerCase(), field.name]));
+  const unknown: string[] = [];
+  const resolved: string[] = [];
+
+  for (const field of requested) {
+    if (field.includes('.')) {
+      resolved.push(field);
+      continue;
+    }
+
+    const canonical = canonicalByLowerName.get(field.toLowerCase());
+
+    if (canonical == null) {
+      unknown.push(field);
+    } else {
+      resolved.push(canonical);
+    }
+  }
+
+  if (unknown.length > 0) {
+    throw new Error(`Unknown field(s) for ${sobject}: ${unknown.join(', ')}.`);
+  }
+
+  return resolved;
+};
+
+const dedupeFields = (fields: string[]): string[] => {
+  const seen = new Set<string>();
+
+  return fields.filter((field) => {
+    const lower = field.toLowerCase();
+
+    if (seen.has(lower)) {
+      return false;
+    }
+
+    seen.add(lower);
+    return true;
+  });
 };
 
 const toShortId = (id: string): string => id.slice(0, shortIdLength);
 
-const stripAttributes = (record: Record<string, unknown>): Record<string, unknown> => {
-  const stripped = { ...record };
+const stripAttributes = (record: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(record)
+      .filter(([key]) => key !== 'attributes')
+      .map(([key, value]) => [key, isPlainObject(value) ? stripAttributes(value) : value])
+  );
 
-  delete stripped.attributes;
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value != null && typeof value === 'object' && !Array.isArray(value);
 
-  return stripped;
-};
+const resolveFieldValue = (record: Record<string, unknown>, field: string): unknown =>
+  field
+    .split('.')
+    .reduce<unknown>((value, segment) => (isPlainObject(value) ? value[segment] : undefined), record);
 
 const formatCell = (value: unknown, truncate: number): string => {
   if (value == null) {

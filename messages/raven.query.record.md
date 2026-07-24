@@ -12,6 +12,14 @@ Fetch every field of a record by id:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH
 
+Fetch only selected fields, including a parent relationship path:
+
+<%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --fields Name,Industry,Owner.Name
+
+Fetch every field plus selected parent relationship paths:
+
+<%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --extra-fields Owner.Name,Owner.Profile.Name
+
 Fetch a record as JSON:
 
 <%= config.bin %> <%= command.id %> --record-ids 001Kf00001aBcDeFGH --json
@@ -23,6 +31,14 @@ Login username or alias for the target org.
 # flags.record-ids.summary
 
 Comma-delimited list of 15 or 18 character record ids to fetch.
+
+# flags.fields.summary
+
+Comma-delimited list of fields to retrieve instead of the full field list; dot-notation relationship paths (e.g. Owner.Name) are allowed.
+
+# flags.extra-fields.summary
+
+Comma-delimited list of fields (typically relationship paths) to add on top of the full field list.
 
 # info.fetching
 

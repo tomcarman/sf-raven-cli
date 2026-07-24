@@ -28,6 +28,16 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
       char: 'i',
       required: true,
     }),
+    fields: Flags.string({
+      summary: messages.getMessage('flags.fields.summary'),
+      char: 'f',
+      exclusive: ['extra-fields'],
+    }),
+    'extra-fields': Flags.string({
+      summary: messages.getMessage('flags.extra-fields.summary'),
+      char: 'e',
+      exclusive: ['fields'],
+    }),
   };
 
   public async run(): Promise<QueryRecordResult> {
@@ -40,7 +50,11 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
     let result: RecordQueryResult;
 
     try {
-      result = await queryRecords(connection, { recordIds: flags['record-ids'] });
+      result = await queryRecords(connection, {
+        recordIds: flags['record-ids'],
+        fields: flags.fields,
+        extraFields: flags['extra-fields'],
+      });
     } finally {
       this.spinner.stop();
     }

@@ -689,11 +689,13 @@ Detect the object from the record id's key prefix, describe the object to build 
 
 ```
 USAGE
-  $ sf raven query record -o <value> -i <value> [--json]
+  $ sf raven query record -o <value> -i <value> [--json] [-f <value> | -e <value>]
 
 FLAGS
-  -i, --record-ids=<value>  (required) Comma-delimited list of 15 or 18 character record ids to fetch.
-  -o, --target-org=<value>  (required) Login username or alias for the target org.
+  -e, --extra-fields=<value>  Comma-delimited list of fields (typically relationship paths) to add on top of the full field list.
+  -f, --fields=<value>        Comma-delimited list of fields to retrieve instead of the full field list; dot-notation relationship paths (e.g. Owner.Name) are allowed.
+  -i, --record-ids=<value>    (required) Comma-delimited list of 15 or 18 character record ids to fetch.
+  -o, --target-org=<value>    (required) Login username or alias for the target org.
 
 GLOBAL FLAGS
   --json  Format output as json.
@@ -703,6 +705,10 @@ DESCRIPTION
 
 EXAMPLES
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH
+
+  $ sf raven query record --record-ids 001Kf00001aBcDeFGH --fields Name,Industry,Owner.Name
+
+  $ sf raven query record --record-ids 001Kf00001aBcDeFGH --extra-fields Owner.Name,Owner.Profile.Name
 
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --json
 ```

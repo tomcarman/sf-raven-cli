@@ -226,6 +226,130 @@ describe('record query', () => {
       assert.deepEqual(connection.describedObjects, []);
       assert.deepEqual(connection.queries, []);
     });
+
+    it('replaces the field list with the requested fields, keeping Id first', async () => {
+      const connection = createFakeConnection({
+        fields: [
+          { name: 'Id', type: 'id' },
+          { name: 'Name', type: 'string' },
+          { name: 'Industry', type: 'picklist' },
+          { name: 'AnnualRevenue', type: 'currency' },
+        ],
+      });
+
+      const result = await queryRecords(connection, { recordIds: accountId, fields: 'Industry,Name' });
+
+      assert.deepEqual(result.fields, ['Id', 'Industry', 'Name']);
+      assert.deepEqual(connection.queries, [`SELECT Id, Industry, Name FROM Account WHERE Id IN ('${accountId}')`]);
+    });
+
+    it('validates requested fields case-insensitively and outputs canonical casing', async () => {
+      const connection = createFakeConnection({
+        fields: [
+          { name: 'Id', type: 'id' },
+          { name: 'Name', type: 'string' },
+          { name: 'Industry', type: 'picklist' },
+        ],
+      });
+
+      const result = await queryRecords(connection, { recordIds: accountId, fields: ' industry , NAME ' });
+
+      assert.deepEqual(result.fields, ['Id', 'Industry', 'Name']);
+      assert.deepEqual(connection.queries, [`SELECT Id, Industry, Name FROM Account WHERE Id IN ('${accountId}')`]);
+    });
+
+    it('does not duplicate Id when it is explicitly requested', async () => {
+      const connection = createFakeConnection();
+
+      const result = await queryRecords(connection, { recordIds: accountId, fields: 'id,Name' });
+
+      assert.deepEqual(result.fields, ['Id', 'Name']);
+    });
+
+    it('fails fast with one error naming every unknown requested field', async () => {
+      const connection = createFakeConnection({
+        fields: [
+          { name: 'Id', type: 'id' },
+          { name: 'Name', type: 'string' },
+        ],
+      });
+
+      await assert.rejects(
+        queryRecords(connection, { recordIds: accountId, fields: 'Name,Foo__c,Bar' }),
+        (error: Error) => error.message.includes('Foo__c') && error.message.includes('Bar') && error.message.includes('Account')
+      );
+
+      assert.deepEqual(connection.queries, []);
+    });
+
+    it('passes dot-notation relationship paths through unvalidated', async () => {
+      const connection = createFakeConnection({
+        records: [
+          {
+            attributes: { type: 'Account' },
+            Id: accountId,
+            Name: 'Acme',
+            Owner: { attributes: { type: 'User' }, Name: 'Jane' },
+          },
+        ],
+      });
+
+      const result = await queryRecords(connection, { recordIds: accountId, fields: 'Name,Owner.Name' });
+
+      assert.deepEqual(result.fields, ['Id', 'Name', 'Owner.Name']);
+      assert.deepEqual(connection.queries, [`SELECT Id, Name, Owner.Name FROM Account WHERE Id IN ('${accountId}')`]);
+      assert.deepEqual(result.records, [{ Id: accountId, Name: 'Acme', Owner: { Name: 'Jane' } }]);
+    });
+
+    it('adds extra fields on top of the full field list', async () => {
+      const connection = createFakeConnection({
+        fields: [
+          { name: 'Id', type: 'id' },
+          { name: 'Name', type: 'string' },
+          { name: 'Industry', type: 'picklist' },
+        ],
+      });
+
+      const result = await queryRecords(connection, {
+        recordIds: accountId,
+        extraFields: 'Owner.Name,Owner.Profile.Name',
+      });
+
+      assert.deepEqual(result.fields, ['Id', 'Name', 'Industry', 'Owner.Name', 'Owner.Profile.Name']);
+      assert.deepEqual(connection.queries, [
+        `SELECT Id, Name, Industry, Owner.Name, Owner.Profile.Name FROM Account WHERE Id IN ('${accountId}')`,
+      ]);
+    });
+
+    it('does not duplicate extra fields already present in the full field list', async () => {
+      const connection = createFakeConnection({
+        fields: [
+          { name: 'Id', type: 'id' },
+          { name: 'Name', type: 'string' },
+          { name: 'Industry', type: 'picklist' },
+        ],
+      });
+
+      const result = await queryRecords(connection, { recordIds: accountId, extraFields: 'name,Owner.Name' });
+
+      assert.deepEqual(result.fields, ['Id', 'Name', 'Industry', 'Owner.Name']);
+    });
+
+    it('fails fast on unknown plain names in extra fields', async () => {
+      const connection = createFakeConnection({
+        fields: [
+          { name: 'Id', type: 'id' },
+          { name: 'Name', type: 'string' },
+        ],
+      });
+
+      await assert.rejects(
+        queryRecords(connection, { recordIds: accountId, extraFields: 'Owner.Name,Nope' }),
+        /Nope/
+      );
+
+      assert.deepEqual(connection.queries, []);
+    });
   });
 
   describe('formatRecordTable', () => {
@@ -313,6 +437,39 @@ describe('record query', () => {
 
       assert.ok(table.includes('abcde…'));
       assert.ok(!table.includes('abcdef…'));
+    });
+
+    it('renders dot-notation paths as rows keyed by the path', () => {
+      const table = formatRecordTable(
+        baseResult({
+          fields: ['Id', 'Name', 'Owner.Name'],
+          records: [{ Id: accountId, Name: 'Acme', Owner: { Name: 'Jane' } }],
+        })
+      );
+
+      assert.equal(
+        table,
+        [
+          'Field       001Kf00001aBcDeFGH',
+          '----------  ------------------',
+          'Id          001Kf00001aBcDeFGH',
+          'Name        Acme',
+          'Owner.Name  Jane',
+        ].join('\n')
+      );
+    });
+
+    it('renders a blank cell when a relationship parent is null', () => {
+      const table = formatRecordTable(
+        baseResult({
+          fields: ['Id', 'Name', 'Owner.Name'],
+          records: [{ Id: accountId, Name: 'Acme', Owner: null }],
+        })
+      );
+
+      assert.ok(table.includes('Owner.Name'));
+      assert.ok(!table.includes('undefined'));
+      assert.ok(!table.includes('null'));
     });
 
     it('does not truncate when the width is 0', () => {
