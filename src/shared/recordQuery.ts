@@ -15,6 +15,7 @@ export type RecordQueryResult = {
   fields: string[];
   idsRequested: string[];
   idsFound: string[];
+  idsNotFound: string[];
   records: Array<Record<string, unknown>>;
 };
 
@@ -23,6 +24,7 @@ export type RecordTableOptions = {
 };
 
 const keyPrefixLength = 3;
+const shortIdLength = 15;
 const defaultTruncateWidth = 80;
 const columnGap = '  ';
 
@@ -33,13 +35,20 @@ export const queryRecords = async (connection: RecordQueryConnection, options: R
 
   const soql = `SELECT ${fields.join(', ')} FROM ${sobject} WHERE Id IN (${idsRequested.map((id) => `'${id}'`).join(', ')})`;
   const queryResult = await connection.query(soql);
-  const records = queryResult.records.map((record) => stripAttributes(record));
+  const recordsByShortId = new Map(
+    queryResult.records.map((record) => [toShortId(String(record.Id)), stripAttributes(record)])
+  );
+
+  const records = idsRequested
+    .map((id) => recordsByShortId.get(toShortId(id)))
+    .filter((record): record is Record<string, unknown> => record != null);
 
   return {
     sobject,
     fields,
     idsRequested,
     idsFound: records.map((record) => String(record.Id)),
+    idsNotFound: idsRequested.filter((id) => !recordsByShortId.has(toShortId(id))),
     records,
   };
 };
@@ -96,6 +105,8 @@ const buildFieldList = async (connection: RecordQueryConnection, sobject: string
 
   return ['Id', ...fields.filter((field) => field !== 'Id')];
 };
+
+const toShortId = (id: string): string => id.slice(0, shortIdLength);
 
 const stripAttributes = (record: Record<string, unknown>): Record<string, unknown> => {
   const stripped = { ...record };

@@ -47,6 +47,10 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
 
     ux.log(formatRecordTable(result));
 
+    if (result.idsNotFound.length > 0) {
+      this.warn(messages.getMessage('warning.recordsNotFound', [result.idsNotFound.join(', ')]));
+    }
+
     return {
       sobject: result.sobject,
       idsRequested: result.idsRequested,

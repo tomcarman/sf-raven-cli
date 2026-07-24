@@ -59,6 +59,7 @@ const baseResult = (overrides: Partial<RecordQueryResult> = {}): RecordQueryResu
   fields: ['Id', 'Name'],
   idsRequested: [accountId],
   idsFound: [accountId],
+  idsNotFound: [],
   records: [{ Id: accountId, Name: 'Acme' }],
   ...overrides,
 });
@@ -85,6 +86,7 @@ describe('record query', () => {
         fields: ['Id', 'Name'],
         idsRequested: [accountId],
         idsFound: [accountId],
+        idsNotFound: [],
         records: [{ Id: accountId, Name: 'Acme' }],
       });
     });
@@ -145,6 +147,55 @@ describe('record query', () => {
 
       assert.deepEqual(result.idsRequested, [accountId, otherAccountId]);
       assert.deepEqual(result.idsFound, [accountId]);
+    });
+
+    it('lists ids that returned no record in idsNotFound as supplied', async () => {
+      const shortMissingId = otherAccountId.slice(0, 15);
+      const connection = createFakeConnection({
+        records: [{ attributes: { type: 'Account' }, Id: accountId, Name: 'Acme' }],
+      });
+
+      const result = await queryRecords(connection, { recordIds: `${accountId},${shortMissingId}` });
+
+      assert.deepEqual(result.idsNotFound, [shortMissingId]);
+      assert.deepEqual(result.records, [{ Id: accountId, Name: 'Acme' }]);
+    });
+
+    it('orders records by requested id order regardless of query return order', async () => {
+      const connection = createFakeConnection({
+        records: [
+          { attributes: { type: 'Account' }, Id: otherAccountId, Name: 'Globex' },
+          { attributes: { type: 'Account' }, Id: accountId, Name: 'Acme' },
+        ],
+      });
+
+      const result = await queryRecords(connection, { recordIds: `${accountId},${otherAccountId}` });
+
+      assert.deepEqual(result.idsFound, [accountId, otherAccountId]);
+      assert.deepEqual(result.records, [
+        { Id: accountId, Name: 'Acme' },
+        { Id: otherAccountId, Name: 'Globex' },
+      ]);
+    });
+
+    it('matches mixed 15- and 18-character ids to their returned records', async () => {
+      const shortAccountId = accountId.slice(0, 15);
+      const connection = createFakeConnection({
+        records: [
+          { attributes: { type: 'Account' }, Id: otherAccountId, Name: 'Globex' },
+          { attributes: { type: 'Account' }, Id: accountId, Name: 'Acme' },
+        ],
+      });
+
+      const result = await queryRecords(connection, { recordIds: `${shortAccountId},${otherAccountId}` });
+
+      assert.deepEqual(result.idsRequested, [shortAccountId, otherAccountId]);
+      assert.deepEqual(result.idsFound, [accountId, otherAccountId]);
+      assert.deepEqual(result.idsNotFound, []);
+      assert.deepEqual(result.records, [
+        { Id: accountId, Name: 'Acme' },
+        { Id: otherAccountId, Name: 'Globex' },
+      ]);
     });
 
     it('rejects malformed ids before any API call', async () => {

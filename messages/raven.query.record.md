@@ -27,3 +27,7 @@ Comma-delimited list of 15 or 18 character record ids to fetch.
 # info.fetching
 
 Fetching record(s)...
+
+# warning.recordsNotFound
+
+No record was found for the following id(s): %s
