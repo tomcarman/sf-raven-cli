@@ -1,10 +1,14 @@
 import { encode } from '@toon-format/toon';
 import { escapeCsvValue, isValidSalesforceId } from './query.js';
 
-export type RecordQueryConnection = {
+type RecordQueryApi = {
   describeGlobal: () => Promise<{ sobjects: Array<{ name: string; keyPrefix?: string | null }> }>;
   describe: (sobjectName: string) => Promise<{ fields: Array<{ name: string; type: string; queryable?: boolean }> }>;
   query: (soql: string) => Promise<{ records: Array<Record<string, unknown>> }>;
+};
+
+export type RecordQueryConnection = RecordQueryApi & {
+  tooling: RecordQueryApi;
 };
 
 export type RecordQueryOptions = {
@@ -34,11 +38,11 @@ const columnGap = '  ';
 
 export const queryRecords = async (connection: RecordQueryConnection, options: RecordQueryOptions): Promise<RecordQueryResult> => {
   const idsRequested = parseRecordIds(options.recordIds);
-  const sobject = await detectSObject(connection, idsRequested[0]);
-  const fields = await buildFieldList(connection, sobject, options);
+  const { api, sobject } = await detectSObject(connection, idsRequested[0]);
+  const fields = await buildFieldList(api, sobject, options);
 
   const soql = `SELECT ${fields.join(', ')} FROM ${sobject} WHERE Id IN (${idsRequested.map((id) => `'${id}'`).join(', ')})`;
-  const queryResult = await connection.query(soql);
+  const queryResult = await api.query(soql);
   const recordsByShortId = new Map(
     queryResult.records.map((record) => [toShortId(String(record.Id)), stripAttributes(record)])
   );
@@ -108,24 +112,39 @@ const parseRecordIds = (recordIds: string): string[] => {
   return ids;
 };
 
-const detectSObject = async (connection: RecordQueryConnection, id: string): Promise<string> => {
+const detectSObject = async (
+  connection: RecordQueryConnection,
+  id: string
+): Promise<{ api: RecordQueryApi; sobject: string }> => {
   const keyPrefix = id.slice(0, keyPrefixLength);
-  const describeGlobalResult = await connection.describeGlobal();
-  const sobject = describeGlobalResult.sobjects.find((candidate) => candidate.keyPrefix === keyPrefix);
+  const regularSObject = await findSObjectByPrefix(connection, keyPrefix);
 
-  if (sobject == null) {
-    throw new Error(`No object with key prefix '${keyPrefix}' was found in the org.`);
+  if (regularSObject != null) {
+    return { api: connection, sobject: regularSObject };
   }
 
-  return sobject.name;
+  const toolingSObject = await findSObjectByPrefix(connection.tooling, keyPrefix);
+
+  if (toolingSObject != null) {
+    return { api: connection.tooling, sobject: toolingSObject };
+  }
+
+  throw new Error(
+    `No object with key prefix '${keyPrefix}' was found in either the regular or Tooling API, so the object type could not be determined.`
+  );
+};
+
+const findSObjectByPrefix = async (api: RecordQueryApi, keyPrefix: string): Promise<string | undefined> => {
+  const describeGlobalResult = await api.describeGlobal();
+  return describeGlobalResult.sobjects.find((candidate) => candidate.keyPrefix === keyPrefix)?.name;
 };
 
 const buildFieldList = async (
-  connection: RecordQueryConnection,
+  api: RecordQueryApi,
   sobject: string,
   options: RecordQueryOptions
 ): Promise<string[]> => {
-  const describeResult = await connection.describe(sobject);
+  const describeResult = await api.describe(sobject);
 
   if (options.fields != null) {
     const requested = resolveRequestedFields(options.fields, describeResult.fields, sobject);

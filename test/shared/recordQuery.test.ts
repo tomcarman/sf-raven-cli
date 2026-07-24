@@ -13,16 +13,23 @@ type FakeConnectionOptions = {
   sobjects?: Array<{ name: string; keyPrefix?: string | null }>;
   fields?: Array<{ name: string; type: string; queryable?: boolean }>;
   records?: Array<Record<string, unknown>>;
+  toolingSobjects?: Array<{ name: string; keyPrefix?: string | null }>;
+  toolingFields?: Array<{ name: string; type: string; queryable?: boolean }>;
+  toolingRecords?: Array<Record<string, unknown>>;
 };
 
 type FakeConnection = RecordQueryConnection & {
   describeGlobalCalls: number;
   describedObjects: string[];
   queries: string[];
+  toolingDescribeGlobalCalls: number;
+  toolingDescribedObjects: string[];
+  toolingQueries: string[];
 };
 
 const accountId = '001Kf00001aBcDeFGH';
 const otherAccountId = '001Kf00001zYxWvUTS';
+const apexClassId = '01pKf00001aBcDeFGH';
 
 const createFakeConnection = ({
   sobjects = [
@@ -35,11 +42,20 @@ const createFakeConnection = ({
     { name: 'Name', type: 'string' },
   ],
   records = [{ attributes: { type: 'Account', url: '/services/data' }, Id: accountId, Name: 'Acme' }],
+  toolingSobjects = [{ name: 'ApexClass', keyPrefix: '01p' }],
+  toolingFields = [
+    { name: 'Id', type: 'id' },
+    { name: 'Name', type: 'string' },
+  ],
+  toolingRecords = [{ attributes: { type: 'ApexClass', url: '/services/data' }, Id: apexClassId, Name: 'MyClass' }],
 }: FakeConnectionOptions = {}): FakeConnection => {
   const connection: FakeConnection = {
     describeGlobalCalls: 0,
     describedObjects: [],
     queries: [],
+    toolingDescribeGlobalCalls: 0,
+    toolingDescribedObjects: [],
+    toolingQueries: [],
     describeGlobal: () => {
       connection.describeGlobalCalls += 1;
       return Promise.resolve({ sobjects });
@@ -51,6 +67,20 @@ const createFakeConnection = ({
     query: (soql: string) => {
       connection.queries.push(soql);
       return Promise.resolve({ records: records.map((record) => ({ ...record })) });
+    },
+    tooling: {
+      describeGlobal: () => {
+        connection.toolingDescribeGlobalCalls += 1;
+        return Promise.resolve({ sobjects: toolingSobjects });
+      },
+      describe: (sobjectName: string) => {
+        connection.toolingDescribedObjects.push(sobjectName);
+        return Promise.resolve({ fields: toolingFields });
+      },
+      query: (soql: string) => {
+        connection.toolingQueries.push(soql);
+        return Promise.resolve({ records: toolingRecords.map((record) => ({ ...record })) });
+      },
     },
   };
 
@@ -222,12 +252,84 @@ describe('record query', () => {
       assert.equal(connection.describeGlobalCalls, 0);
     });
 
-    it('throws a detection error when no object matches the key prefix', async () => {
-      const connection = createFakeConnection({ sobjects: [{ name: 'Contact', keyPrefix: '003' }] });
+    it('throws a detection error naming both APIs when no object matches the key prefix in either', async () => {
+      const connection = createFakeConnection({
+        sobjects: [{ name: 'Contact', keyPrefix: '003' }],
+        toolingSobjects: [{ name: 'ApexClass', keyPrefix: '01p' }],
+      });
 
-      await assert.rejects(queryRecords(connection, { recordIds: accountId }), /001/);
+      await assert.rejects(
+        queryRecords(connection, { recordIds: accountId }),
+        (error: Error) => error.message.includes('001') && error.message.includes('Tooling')
+      );
+
+      assert.equal(connection.describeGlobalCalls, 1);
+      assert.equal(connection.toolingDescribeGlobalCalls, 1);
+      assert.deepEqual(connection.describedObjects, []);
+      assert.deepEqual(connection.toolingDescribedObjects, []);
+      assert.deepEqual(connection.queries, []);
+      assert.deepEqual(connection.toolingQueries, []);
+    });
+
+    it('resolves regular-API objects without touching the Tooling API', async () => {
+      const connection = createFakeConnection();
+
+      const result = await queryRecords(connection, { recordIds: accountId });
+
+      assert.equal(result.sobject, 'Account');
+      assert.equal(connection.toolingDescribeGlobalCalls, 0);
+      assert.deepEqual(connection.toolingDescribedObjects, []);
+      assert.deepEqual(connection.toolingQueries, []);
+    });
+
+    it('falls back to the Tooling API when the regular API does not know the prefix', async () => {
+      const connection = createFakeConnection();
+
+      const result = await queryRecords(connection, { recordIds: apexClassId });
+
+      assert.equal(result.sobject, 'ApexClass');
+      assert.equal(connection.describeGlobalCalls, 1);
+      assert.equal(connection.toolingDescribeGlobalCalls, 1);
+      assert.deepEqual(result.records, [{ Id: apexClassId, Name: 'MyClass' }]);
+    });
+
+    it('runs the describe and the query through the Tooling API for a tooling object', async () => {
+      const connection = createFakeConnection();
+
+      await queryRecords(connection, { recordIds: apexClassId });
+
+      assert.deepEqual(connection.toolingDescribedObjects, ['ApexClass']);
+      assert.deepEqual(connection.toolingQueries, [`SELECT Id, Name FROM ApexClass WHERE Id IN ('${apexClassId}')`]);
       assert.deepEqual(connection.describedObjects, []);
       assert.deepEqual(connection.queries, []);
+    });
+
+    it('applies field selection against the Tooling API describe for a tooling object', async () => {
+      const connection = createFakeConnection({
+        toolingFields: [
+          { name: 'Id', type: 'id' },
+          { name: 'Name', type: 'string' },
+          { name: 'ApiVersion', type: 'double' },
+          { name: 'Body', type: 'string' },
+        ],
+      });
+
+      const result = await queryRecords(connection, { recordIds: apexClassId, fields: 'apiversion,Name' });
+
+      assert.deepEqual(result.fields, ['Id', 'ApiVersion', 'Name']);
+      assert.deepEqual(connection.toolingQueries, [
+        `SELECT Id, ApiVersion, Name FROM ApexClass WHERE Id IN ('${apexClassId}')`,
+      ]);
+    });
+
+    it('reports tooling ids that returned no record in idsNotFound', async () => {
+      const missingApexClassId = '01pKf00001zYxWvUTS';
+      const connection = createFakeConnection();
+
+      const result = await queryRecords(connection, { recordIds: `${apexClassId},${missingApexClassId}` });
+
+      assert.deepEqual(result.idsFound, [apexClassId]);
+      assert.deepEqual(result.idsNotFound, [missingApexClassId]);
     });
 
     it('replaces the field list with the requested fields, keeping Id first', async () => {

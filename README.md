@@ -685,7 +685,7 @@ EXAMPLES
 
 ### sf raven query record
 
-Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. Long values are truncated with an ellipsis; null values render as blank cells.
+Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. If the key prefix is unknown to the regular API, detection falls back to the Tooling API, so setup entities (e.g. ApexClass) work the same way. Long values are truncated with an ellipsis; null values render as blank cells.
 
 ```
 USAGE
@@ -704,7 +704,7 @@ GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. Long values are truncated with an ellipsis; null values render as blank cells.
+  Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. If the key prefix is unknown to the regular API, detection falls back to the Tooling API, so setup entities (e.g. ApexClass) work the same way. Long values are truncated with an ellipsis; null values render as blank cells.
 
 EXAMPLES
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH
