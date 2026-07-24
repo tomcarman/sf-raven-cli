@@ -1,13 +1,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
+import { escapeCsvValue, getEncodedQueryLength, isValidSalesforceId, maxEncodedQueryLength } from '../../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.ids');
 
-const idPattern = /^[a-zA-Z0-9]{15}([a-zA-Z0-9]{3})?$/;
 const idsPlaceholder = '{ids}';
-const maxEncodedQueryLength = 14_000;
 
 export type QueryIdsResult = {
   totalRows: number;
@@ -149,7 +148,7 @@ const parseIdsFromFile = (filePath: string): ParsedIds => {
   let duplicateIds = 0;
 
   for (const row of rows) {
-    if (!idPattern.test(row)) {
+    if (!isValidSalesforceId(row)) {
       throw messages.createError('error.invalidId', [row]);
     }
 
@@ -213,8 +212,6 @@ const buildAutomaticBatches = (ids: string[], query: string): string[][] => {
 };
 
 const buildQuery = (query: string, ids: string[]): string => query.replace(idsPlaceholder, `(${ids.map((id) => `'${id}'`).join(', ')})`);
-
-const getEncodedQueryLength = (query: string): number => Buffer.byteLength(encodeURIComponent(query), 'utf8');
 
 const runQuery = async (
   connection: QueryConnection,
@@ -306,18 +303,4 @@ const writeCsv = (filePath: string, records: QueryRecord[]): void => {
   }
 
   writeFileSync(filePath, `${rows.join('\n')}\n`, 'utf8');
-};
-
-const escapeCsvValue = (value: unknown): string => {
-  if (value == null) {
-    return '';
-  }
-
-  const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-
-  if (/[",\n\r]/.test(stringValue)) {
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  }
-
-  return stringValue;
 };
