@@ -14,7 +14,7 @@
     "chalk": "^4.1.2",
     "dayjs": "^1.11.20",
     "fast-xml-parser": "^5.7.3",
-    "jsforce": "^3.3.1",
+    "jsforce": "^3.10.19",
     "node-emoji": "^2.2.0"
   },
   "private": false,
