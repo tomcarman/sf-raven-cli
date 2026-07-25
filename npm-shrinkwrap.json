@@ -28,7 +28,7 @@
       },
       "devDependencies": {
         "@oclif/plugin-command-snapshot": "^5.3.21",
-        "@salesforce/cli-plugins-testkit": "^5.3.58",
+        "@salesforce/cli-plugins-testkit": "^5.3.64",
         "@salesforce/dev-scripts": "^10.2.4",
         "@types/js-yaml": "^4.0.9",
         "@types/node": "^20.19.42",
@@ -2854,9 +2854,9 @@
       }
     },
     "node_modules/@jsforce/jsforce-node": {
-      "version": "3.10.15",
-      "resolved": "https://registry.npmjs.org/@jsforce/jsforce-node/-/jsforce-node-3.10.15.tgz",
-      "integrity": "sha512-rtl4MCmy5EzUQ8ehJfjcQCVW2EPCBfopxpZjmXzJrKdtwH6ptjeC5VdyfjS40XNjD7k7heXRZr1jRVU3Ej6kcQ==",
+      "version": "3.10.19",
+      "resolved": "https://registry.npmjs.org/@jsforce/jsforce-node/-/jsforce-node-3.10.19.tgz",
+      "integrity": "sha512-k7i2Tntu1fLvkMtRcKDFU64/Fr2M692ECtbwIGX6hcOh5mj+jrMa1tlvcdwffxAMl+lPYCXnY2bjErxWmP84zA==",
       "license": "MIT",
       "dependencies": {
         "@sindresorhus/is": "^4",
@@ -2865,13 +2865,12 @@
         "csv-stringify": "^6.6.0",
         "faye": "^1.4.0",
         "form-data": "^4.0.4",
-        "https-proxy-agent": "^5.0.0",
         "multistream": "^3.1.0",
-        "node-fetch": "^2.6.1",
+        "undici": "^8.5.0",
         "xml2js": "^0.6.2"
       },
       "engines": {
-        "node": ">=18"
+        "node": ">=22"
       }
     },
     "node_modules/@jsonjoy.com/base64": {
@@ -3315,13 +3314,13 @@
       }
     },
     "node_modules/@salesforce/cli-plugins-testkit": {
-      "version": "5.3.58",
-      "resolved": "https://registry.npmjs.org/@salesforce/cli-plugins-testkit/-/cli-plugins-testkit-5.3.58.tgz",
-      "integrity": "sha512-JNRqR+XDhaWUu419Kum5KvUKiw6gQL6O+DUAn3+GRfuia2jYmwVAC9RdQaEcdXQH5BH/3E4JLw5EVEw/LndRQw==",
+      "version": "5.3.64",
+      "resolved": "https://registry.npmjs.org/@salesforce/cli-plugins-testkit/-/cli-plugins-testkit-5.3.64.tgz",
+      "integrity": "sha512-4jUPow+oOr2Jp3s3QKCS1Aw9qs9AV2sIuk3YvWz9gMd7Y3/wVROG4C5OelfnrClGocxDAOVaCgJrTSoF0VQzUg==",
       "dev": true,
       "license": "Apache-2.0",
       "dependencies": {
-        "@salesforce/core": "^8.30.3",
+        "@salesforce/core": "^8.31.2",
         "@salesforce/kit": "^3.2.6",
         "@salesforce/ts-types": "^2.0.11",
         "@types/shelljs": "^0.10.0",
@@ -3440,12 +3439,12 @@
       }
     },
     "node_modules/@salesforce/core": {
-      "version": "8.31.0",
-      "resolved": "https://registry.npmjs.org/@salesforce/core/-/core-8.31.0.tgz",
-      "integrity": "sha512-TXQoR7Bs0Dk5AuNY8eaNRhMeLDLcpJ8su7LVxn7VVfnRxITrRh4gkSuOAXdBKAqx0WcjRONDs1twedaOE7Xu4Q==",
+      "version": "8.32.6",
+      "resolved": "https://registry.npmjs.org/@salesforce/core/-/core-8.32.6.tgz",
+      "integrity": "sha512-ZR973WoqCgi6cR58WhgokbHVZOaADNKHiuM1FAwS5pTLQnC91xYi04i2e/gpAX2AUf7Ya6zjbusYtZNpSyKKAQ==",
       "license": "BSD-3-Clause",
       "dependencies": {
-        "@jsforce/jsforce-node": "^3.10.13",
+        "@jsforce/jsforce-node": "^3.10.17",
         "@salesforce/kit": "^3.2.4",
         "@salesforce/ts-types": "^2.0.12",
         "ajv": "^8.18.0",
@@ -14285,6 +14284,15 @@
       },
       "funding": {
         "url": "https://github.com/sponsors/ljharb"
+      }
+    },
+    "node_modules/undici": {
+      "version": "8.9.0",
+      "resolved": "https://registry.npmjs.org/undici/-/undici-8.9.0.tgz",
+      "integrity": "sha512-aWZpUj7XoGonMClx4gdDRfgBjqeA+F473aDmROQQbM9n6PRfK/u1q/a0X4wMTgcHfT8H6fpbt98PFuDUwFg2YA==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=22.19.0"
       }
     },
     "node_modules/undici-types": {
