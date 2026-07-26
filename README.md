@@ -39,20 +39,16 @@
 
 Full details, usage, examples etc are further down, or can be accessed via `--help` on the commands.
 
-**sf raven object display**
 
-- [sf raven object display fields](#sf-raven-object-display-fields)
-  - Show field information for a given sObject.
-  - <details><summary>Demo</summary><br/><img src="media/demos/raven-object-display-fields.gif" alt="sf raven object display fields demo"/></details>
+**[sf raven object display fields](#sf-raven-object-display-fields)** - _Show field information for a given sObject._  
+<details><summary>Example</summary><br/><img src="media/demos/raven-object-display-fields.gif" alt="sf raven object display fields demo"/></details>
+
 - [sf raven object display recordtypes](#sf-raven-object-display-recordtypes)
   - Show RecordType information for a given sObject.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-object-display-recordtypes.gif" alt="sf raven object display recordtypes demo"/></details>
 - [sf raven object display validationrules](#sf-raven-object-display-validationrules)
   - Show Validation Rule information for a given sObject.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-object-display-validationrules.gif" alt="sf raven object display validationrules demo"/></details>
-
-**sf raven inspect**
-
 - [sf raven inspect automations](#sf-raven-inspect-automations)
   - Show all automation that fires on a given sObject.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-inspect-automations.gif" alt="sf raven inspect automations demo"/></details>
@@ -62,42 +58,24 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 - [sf raven inspect field](#sf-raven-inspect-field)
   - Find everywhere a field is referenced across the org's metadata.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-inspect-field.gif" alt="sf raven inspect field demo"/></details>
-
-**sf raven audit display**
-
 - [sf raven audit display](#sf-raven-audit-display)
   - Show recent entries in the Setup Audit Trail.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-audit-display.gif" alt="sf raven audit display demo"/></details>
-
-**sf raven event**
-
 - [sf raven event subscribe](#sf-raven-event-subscribe)
   - Subscribe to Platform Events, streamed to your terminal.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-event-subscribe.gif" alt="sf raven event subscribe demo"/></details>
-
-**sf raven deploy**
-
 - [sf raven deploy cancel](#sf-raven-deploy-cancel)
   - Query an org for pending or in progress Salesforce deployments, and cancel them.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-deploy-cancel.gif" alt="sf raven deploy cancel demo"/></details>
-
-**sf raven query**
-
 - [sf raven query ids](#sf-raven-query-ids)
   - Run a SOQL query against a large list of Salesforce IDs.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-query-ids.gif" alt="sf raven query ids demo"/></details>
 - [sf raven query record](#sf-raven-query-record)
   - Fetch any record by id with full-field output.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-query-record.gif" alt="sf raven query record demo"/></details>
-
-**sf raven apex**
-
 - [sf raven apex log](#sf-raven-apex-log)
   - Tail Apex debug logs in real time, streamed to your terminal - a wrapper around the native `sf apex tail log` that makes it better.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-apex-log.gif" alt="sf raven apex log demo"/></details>
-
-**sf raven pull**
-
 - [sf raven pull](#sf-raven-pull)
   - Update Salesforce metadata into the local project via a fuzzy finder.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-pull.gif" alt="sf raven pull demo"/></details>
@@ -116,9 +94,6 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 - [sf raven pull remote type remove](#sf-raven-pull-remote-type-remove)
   - Remove metadata types from the remote pull configuration.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-pull-remote-type-remove.gif" alt="sf raven pull remote type remove demo"/></details>
-
-**sf raven profile**
-
 - [sf raven profile sync](#sf-raven-profile-sync)
   - Sync full Profile metadata from an org into local source files - byte-identical to a full-project retrieve, in a fraction of the time.
   - <details><summary>Demo</summary><br/><img src="media/demos/raven-profile-sync.gif" alt="sf raven profile sync demo"/></details>
