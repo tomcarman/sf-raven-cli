@@ -39,46 +39,28 @@
 
 Full details, usage, examples etc are further down, or can be accessed via `--help` on the commands.
 
+- **[sf raven object display fields](#sf-raven-object-display-fields)** - _Show field information for a given sObject._
+- **[sf raven object display recordtypes](#sf-raven-object-display-recordtypes)** - _Show RecordType information for a given sObject._
+- **[sf raven object display validationrules](#sf-raven-object-display-validationrules)** - _Show Validation Rule information for a given sObject._
+- **[sf raven inspect automations](#sf-raven-inspect-automations)** - _Show all automation that fires on a given sObject._
+- **[sf raven inspect dependencies](#sf-raven-inspect-dependencies)** - _Show what a metadata component depends on and what depends on it._
+- **[sf raven inspect field](#sf-raven-inspect-field)** - _Find everywhere a field is referenced across the org's metadata._
+- **[sf raven audit display](#sf-raven-audit-display)** - _Show recent entries in the Setup Audit Trail._
+- **[sf raven event subscribe](#sf-raven-event-subscribe)** - _Subscribe to Platform Events, streamed to your terminal._
+- **[sf raven deploy cancel](#sf-raven-deploy-cancel)** - _Query an org for pending or in progress Salesforce deployments, and cancel them._
+- **[sf raven query ids](#sf-raven-query-ids)** - _Run a SOQL query against a large list of Salesforce IDs._
+- **[sf raven query record](#sf-raven-query-record)** - _Fetch any record by id with full-field output._
+- **[sf raven apex log](#sf-raven-apex-log)** - _Tail Apex debug logs in real time, streamed to your terminal - a wrapper around the native `sf apex tail log` that makes it better._
+- **[sf raven pull](#sf-raven-pull)** - _Update Salesforce metadata into the local project via a fuzzy finder._
+- **[sf raven pull list](#sf-raven-pull-list)** - _List metadata types and components available to pull, as JSON for machine consumption._
+- **[sf raven pull remote](#sf-raven-pull-remote)** - _Retrieve Salesforce metadata that exists in the org but not locally, by selecting a configured metadata type and then one or more remote components._
+- **[sf raven pull remote type add](#sf-raven-pull-remote-type-add)** - _Add metadata types to the remote pull configuration._
+- **[sf raven pull remote type list](#sf-raven-pull-remote-type-list)** - _List metadata types supported by remote pull._
+- **[sf raven pull remote type remove](#sf-raven-pull-remote-type-remove)** - _Remove metadata types from the remote pull configuration._
+- **[sf raven profile sync](#sf-raven-profile-sync)** - _Sync full Profile metadata from an org into local source files - byte-identical to a full-project retrieve, in a fraction of the time._
+- **[sf raven profile sync select](#sf-raven-profile-sync-select)** - _Interactively pick org profiles to sync into local source via a fuzzy finder, including adopting profiles not yet tracked._
 
-**[sf raven object display fields](#sf-raven-object-display-fields)** - _Show field information for a given sObject._
-
-**[sf raven object display recordtypes](#sf-raven-object-display-recordtypes)** - _Show RecordType information for a given sObject._
-
-**[sf raven object display validationrules](#sf-raven-object-display-validationrules)** - _Show Validation Rule information for a given sObject._
-
-**[sf raven inspect automations](#sf-raven-inspect-automations)** - _Show all automation that fires on a given sObject._
-
-**[sf raven inspect dependencies](#sf-raven-inspect-dependencies)** - _Show what a metadata component depends on and what depends on it._
-
-**[sf raven inspect field](#sf-raven-inspect-field)** - _Find everywhere a field is referenced across the org's metadata._
-
-**[sf raven audit display](#sf-raven-audit-display)** - _Show recent entries in the Setup Audit Trail._
-
-**[sf raven event subscribe](#sf-raven-event-subscribe)** - _Subscribe to Platform Events, streamed to your terminal._
-
-**[sf raven deploy cancel](#sf-raven-deploy-cancel)** - _Query an org for pending or in progress Salesforce deployments, and cancel them._
-
-**[sf raven query ids](#sf-raven-query-ids)** - _Run a SOQL query against a large list of Salesforce IDs._
-
-**[sf raven query record](#sf-raven-query-record)** - _Fetch any record by id with full-field output._
-
-**[sf raven apex log](#sf-raven-apex-log)** - _Tail Apex debug logs in real time, streamed to your terminal - a wrapper around the native `sf apex tail log` that makes it better._
-
-**[sf raven pull](#sf-raven-pull)** - _Update Salesforce metadata into the local project via a fuzzy finder._
-
-**[sf raven pull list](#sf-raven-pull-list)** - _List metadata types and components available to pull, as JSON for machine consumption._
-
-**[sf raven pull remote](#sf-raven-pull-remote)** - _Retrieve Salesforce metadata that exists in the org but not locally, by selecting a configured metadata type and then one or more remote components._
-
-**[sf raven pull remote type add](#sf-raven-pull-remote-type-add)** - _Add metadata types to the remote pull configuration._
-
-**[sf raven pull remote type list](#sf-raven-pull-remote-type-list)** - _List metadata types supported by remote pull._
-
-**[sf raven pull remote type remove](#sf-raven-pull-remote-type-remove)** - _Remove metadata types from the remote pull configuration._
-
-**[sf raven profile sync](#sf-raven-profile-sync)** - _Sync full Profile metadata from an org into local source files - byte-identical to a full-project retrieve, in a fraction of the time._
-
-**[sf raven profile sync select](#sf-raven-profile-sync-select)** - _Interactively pick org profiles to sync into local source via a fuzzy finder, including adopting profiles not yet tracked._
+  
 ## Install
 
 ### Dependencies
@@ -122,7 +104,7 @@ The plugin can be updated to the latest version using
 
 ### sf raven object display fields
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-object-display-fields.gif" alt="sf raven object display fields demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-object-display-fields.gif" alt="sf raven object display fields demo"/></details>
 
 Show field information for a given sObject.
 
@@ -167,7 +149,7 @@ Annual Revenue     AnnualRevenue   Currency(18, 0)
 
 ### sf raven object display recordtypes
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-object-display-recordtypes.gif" alt="sf raven object display recordtypes demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-object-display-recordtypes.gif" alt="sf raven object display recordtypes demo"/></details>
 
 Show RecordType information for a given sObject.
 
@@ -211,7 +193,7 @@ Person Account      PersonAccount           0124J000000YYYYDEF
 
 ### sf raven object display validationrules
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-object-display-validationrules.gif" alt="sf raven object display validationrules demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-object-display-validationrules.gif" alt="sf raven object display validationrules demo"/></details>
 
 Show Validation Rule information for a given sObject.
 
@@ -256,7 +238,7 @@ Valid_Billing_Country    false   Billing country must be ISO code  Enter a valid
 
 ### sf raven inspect automations
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-inspect-automations.gif" alt="sf raven inspect automations demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-inspect-automations.gif" alt="sf raven inspect automations demo"/></details>
 
 Displays Apex Triggers, record-triggered Flows, Workflow Rules, and Process Builder processes that are configured on the given sObject, grouped by execution phase.
 
@@ -300,7 +282,7 @@ Post-Save       Workflow Rule Notify Account Owner        Insert, Update
 
 ### sf raven inspect dependencies
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-inspect-dependencies.gif" alt="sf raven inspect dependencies demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-inspect-dependencies.gif" alt="sf raven inspect dependencies demo"/></details>
 
 Queries the MetadataComponentDependency API to show outbound dependencies (what this component uses) and inbound references (what uses this component).
 
@@ -357,7 +339,7 @@ Flow       Opportunity_Update_Create_Service_Records
 
 ### sf raven inspect field
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-inspect-field.gif" alt="sf raven inspect field demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-inspect-field.gif" alt="sf raven inspect field demo"/></details>
 
 Queries the MetadataComponentDependency API to find Apex classes, triggers, Flows, and other metadata that references the given custom field.
 
@@ -406,7 +388,7 @@ Layout     Account Layout       deep
 
 ### sf raven pull
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-pull.gif" alt="sf raven pull demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-pull.gif" alt="sf raven pull demo"/></details>
 
 Refresh local Salesforce metadata from an authenticated org. Without `--all`, local metadata paths are loaded into fzf so you can choose one or more files or directories to retrieve. Press Tab to select multiple paths, then Enter to retrieve them together. With `--all`, each package directory from sfdx-project.json is retrieved.
 
@@ -436,7 +418,7 @@ EXAMPLES
 
 ### sf raven pull list
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-pull-list.gif" alt="sf raven pull list demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-pull-list.gif" alt="sf raven pull list demo"/></details>
 
 Report the metadata inventory used by the interactive pull commands, without any prompts. By default, lists the effective metadata types (the configured `pullRemote.metadataTypes` plugin config, or the types present in the local project when no config exists) with a count of local components per type. Use `--all-types` to list every metadata type the org supports, or `--metadata-type` to list the merged local/remote component list for a single type. Designed for machine consumption via `--json`.
 
@@ -465,7 +447,7 @@ EXAMPLES
 
 ### sf raven pull remote
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-pull-remote.gif" alt="sf raven pull remote demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-pull-remote.gif" alt="sf raven pull remote demo"/></details>
 
 Select a configured metadata type, then list components of that type that exist in the target org but are not present in the local project. Org-only components are prefixed with a cloud marker in fzf. Press Tab to select multiple components, then Enter to retrieve them.
 
@@ -490,7 +472,7 @@ EXAMPLES
 
 ### sf raven pull remote type add
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-pull-remote-type-add.gif" alt="sf raven pull remote type add demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-pull-remote-type-add.gif" alt="sf raven pull remote type add demo"/></details>
 
 List metadata types available in the target org and select one or more to add to this project's `sf raven pull remote` configuration. Press Tab to select multiple types in fzf, then Enter to save them.
 
@@ -515,7 +497,7 @@ EXAMPLES
 
 ### sf raven pull remote type list
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-pull-remote-type-list.gif" alt="sf raven pull remote type list demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-pull-remote-type-list.gif" alt="sf raven pull remote type list demo"/></details>
 
 Display the metadata types that `sf raven pull remote` can inspect. If no project configuration has been saved yet, the list is derived from metadata types already present in the local project.
 
@@ -535,7 +517,7 @@ EXAMPLES
 
 ### sf raven pull remote type remove
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-pull-remote-type-remove.gif" alt="sf raven pull remote type remove demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-pull-remote-type-remove.gif" alt="sf raven pull remote type remove demo"/></details>
 
 Select one or more metadata types to remove from this project's `sf raven pull remote` configuration. Press Tab to select multiple types in fzf, then Enter to save the updated list.
 
@@ -555,7 +537,7 @@ EXAMPLES
 
 ### sf raven profile sync
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-profile-sync.gif" alt="sf raven profile sync demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-profile-sync.gif" alt="sf raven profile sync demo"/></details>
 
 Reads the complete content of each Profile directly from the org via the CRUD Metadata API, which is not package-context-scoped, filters it down to the components tracked in local source, and overwrites the tracked profile files in place, wherever they live across package directories. The output is byte-identical to what a full-project `sf project retrieve` would produce for the profiles, in a fraction of the time. With no arguments, every profile tracked in local source is synced; profiles are fetched in parallel batches, and profiles that exist locally but not in the org are skipped with a warning. Entries that reference metadata not present in the local project are filtered out; user permissions, login IP ranges, the custom flag, and the user license are always kept in full. The org read uses the project's sourceApiVersion.
 
@@ -598,7 +580,7 @@ Standard User is already up to date.
 
 ### sf raven profile sync select
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-profile-sync-select.gif" alt="sf raven profile sync select demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-profile-sync-select.gif" alt="sf raven profile sync select demo"/></details>
 
 Lists every profile in the target org, alongside every profile tracked in local source, in a multi-select fuzzy picker (requires fzf). Each profile is annotated with its status: "both" (tracked locally and in the org), "remote" (org only), or "local" (local source only). Selected profiles that are tracked locally are refreshed in place through the same pipeline as `sf raven profile sync`. Selected profiles that exist only in the org are adopted: a new profile file is created in the default package directory's profiles folder, filtered to the components tracked in local source and serialized identically to synced profiles. Selected local-only profiles are skipped with a warning, and cancelling the picker makes no changes.
 
@@ -632,7 +614,7 @@ Created Read Only -> force-app/main/default/profiles/Read Only.profile-meta.xml
 
 ### sf raven deploy cancel
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-deploy-cancel.gif" alt="sf raven deploy cancel demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-deploy-cancel.gif" alt="sf raven deploy cancel demo"/></details>
 
 Query the target org for pending or in-progress deploy requests, select one from an interactive list, confirm the cancellation, and submit an asynchronous deploy cancel request.
 
@@ -657,7 +639,7 @@ EXAMPLES
 
 ### sf raven query ids
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-query-ids.gif" alt="sf raven query ids demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-query-ids.gif" alt="sf raven query ids demo"/></details>
 
 Read Salesforce IDs from a file, deduplicate and validate them, split them into safe query batches, and run a SOQL query with the IDs inserted at the `{ids}` placeholder.
 
@@ -691,7 +673,7 @@ EXAMPLES
 
 ### sf raven query record
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-query-record.gif" alt="sf raven query record demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-query-record.gif" alt="sf raven query record demo"/></details>
 
 Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. If the key prefix is unknown to the regular API, detection falls back to the Tooling API, so setup entities (e.g. ApexClass) work the same way. Long values are truncated with an ellipsis; null values render as blank cells.
 
@@ -734,7 +716,7 @@ EXAMPLES
 
 ### sf raven audit display
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-audit-display.gif" alt="sf raven audit display demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-audit-display.gif" alt="sf raven audit display demo"/></details>
 
 Show recent entries in the Setup Audit Trail.
 
@@ -778,7 +760,7 @@ Date                Username      Type         Action                           
 
 ### sf raven event subscribe
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-event-subscribe.gif" alt="sf raven event subscribe demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-event-subscribe.gif" alt="sf raven event subscribe demo"/></details>
 
 Subscribe to Platform Events.
 
@@ -831,7 +813,7 @@ OUTPUT
 
 ### sf raven apex log
 
-<details><summary>Example</summary><br/><img src="media/demos/raven-apex-log.gif" alt="sf raven apex log demo"/></details>
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-apex-log.gif" alt="sf raven apex log demo"/></details>
 
 Tail Apex debug logs in real time, streamed to your terminal - a wrapper around the native `sf apex tail log` that makes it better.
 * Automatically manages trace flags for your user, or another user passed in (via `--user`)
