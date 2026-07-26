@@ -22,6 +22,10 @@ The replay id to replay events from eg. 21980378.
 
 How long to subscribe for before timing out in minutes eg. 10. Default is 3 minutes.
 
+# info.exiting
+
+Exiting.
+
 # examples
 
 - <%= config.bin %> <%= command.id %> --target-org dev --event /event/My_Event\_\_e

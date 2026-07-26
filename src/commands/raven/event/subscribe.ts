@@ -65,6 +65,13 @@ export default class EventSubscribe extends SfCommand<EventSubscribeResult> {
     // Connect to the org
 
     const asyncStatusClient = await StreamingClient.create(options);
+
+    process.removeAllListeners('SIGINT');
+    process.once('SIGINT', () => {
+      ux.log(messages.getMessage('info.exiting'));
+      process.exit(130);
+    });
+
     await asyncStatusClient.handshake();
 
     ux.spinner.stop();
