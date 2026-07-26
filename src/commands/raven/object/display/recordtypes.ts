@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
+import { escapeCsvValue } from '../../../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.object.display.recordtypes');
@@ -162,18 +163,4 @@ const writeCsv = (
   ];
 
   writeFileSync(filePath, `${rows.join('\n')}\n`, 'utf8');
-};
-
-const escapeCsvValue = (value: unknown): string => {
-  if (value == null) {
-    return '';
-  }
-
-  const stringValue = String(value);
-
-  if (/[",\n\r]/.test(stringValue)) {
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  }
-
-  return stringValue;
 };
