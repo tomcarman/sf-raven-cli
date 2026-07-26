@@ -14,26 +14,7 @@
 * [Features](#features)
 * [Install](#install)
 * [Command Reference](#command-reference)
-  * [sf raven object display fields](#sf-raven-object-display-fields)
-  * [sf raven object display recordtypes](#sf-raven-object-display-recordtypes)
-  * [sf raven object display validationrules](#sf-raven-object-display-validationrules)
-  * [sf raven inspect automations](#sf-raven-inspect-automations)
-  * [sf raven inspect dependencies](#sf-raven-inspect-dependencies)
-  * [sf raven inspect field](#sf-raven-inspect-field)
-  * [sf raven pull](#sf-raven-pull)
-  * [sf raven pull list](#sf-raven-pull-list)
-  * [sf raven pull remote](#sf-raven-pull-remote)
-  * [sf raven pull remote type add](#sf-raven-pull-remote-type-add)
-  * [sf raven pull remote type list](#sf-raven-pull-remote-type-list)
-  * [sf raven pull remote type remove](#sf-raven-pull-remote-type-remove)
-  * [sf raven profile sync](#sf-raven-profile-sync)
-  * [sf raven profile sync select](#sf-raven-profile-sync-select)
-  * [sf raven deploy cancel](#sf-raven-deploy-cancel)
-  * [sf raven query ids](#sf-raven-query-ids)
-  * [sf raven query record](#sf-raven-query-record)
-  * [sf raven audit display](#sf-raven-audit-display)
-  * [sf raven event subscribe](#sf-raven-event-subscribe)
-  * [sf raven apex log](#sf-raven-apex-log)
+
 
 ## Features
 
