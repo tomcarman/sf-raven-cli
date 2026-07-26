@@ -71,15 +71,15 @@ The plugin can be updated to the latest version using
 
 ### Install from source
 
-1. Install the [SDFX CLI](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_install_cli.htm)
+1. Install the [sf cli](https://developer.salesforce.com/tools/salesforcecli)
 2. Clone the repository: `git clone git@github.com:tomcarman/sf-raven-cli.git`
 3. Install npm modules: `npm install`
 4. Link the plugin: `sf plugins link .`
 
 ### Compatibility
-
-- **macOS**
-  - Plugin has been built on macOS and will always run on macOS
+* Linux
+* macOS
+* Possibly Windows - but untested
 
 ## Command Reference
 
