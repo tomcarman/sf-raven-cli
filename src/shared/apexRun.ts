@@ -69,6 +69,35 @@ export const buildApexRunResult = (
   return result;
 };
 
+export type ApexRunStatusName = 'watching' | 'run-start';
+
+export type ApexRunStatusEvent = {
+  type: 'status';
+  status: ApexRunStatusName;
+  file: string;
+};
+
+export type ApexRunRunEvent = ApexRunResult & { type: 'run' };
+
+export type ApexRunErrorEvent = {
+  type: 'error';
+  message: string;
+};
+
+export type ApexRunStreamEvent = ApexRunStatusEvent | ApexRunRunEvent | ApexRunErrorEvent;
+
+export const buildApexRunStatusEvent = (status: ApexRunStatusName, file: string): ApexRunStatusEvent => ({
+  type: 'status',
+  status,
+  file,
+});
+
+export const buildApexRunEvent = (result: ApexRunResult): ApexRunRunEvent => ({ type: 'run', ...result });
+
+export const buildApexRunErrorEvent = (message: string): ApexRunErrorEvent => ({ type: 'error', message });
+
+export const serializeApexRunEvent = (event: ApexRunStreamEvent): string => JSON.stringify(event);
+
 export type RenderApexRunOptions = {
   raw?: boolean;
   filter?: string;

@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import type { ExecuteAnonymousResponse } from '@salesforce/apex-node';
-import { buildApexRunResult, renderApexRun, stripAnsi } from '../../src/shared/apexRun.js';
+import {
+  buildApexRunErrorEvent,
+  buildApexRunEvent,
+  buildApexRunResult,
+  buildApexRunStatusEvent,
+  renderApexRun,
+  serializeApexRunEvent,
+  stripAnsi,
+} from '../../src/shared/apexRun.js';
 
 const debugLog = ['10:00:00.1 (1)|USER_DEBUG|[3]|DEBUG|hello', '10:00:00.2 (2)|USER_DEBUG|[4]|DEBUG|goodbye'].join('\n');
 
@@ -98,6 +106,56 @@ describe('apex run result', () => {
       assert.equal(result.exceptionStackTrace, 'AnonymousBlock: line 4, column 1');
       assert.equal(result.compileProblem, undefined);
       assert.equal(result.logLines.length, 2, 'debug lines emitted before the exception are kept');
+    });
+  });
+
+  describe('NDJSON events', () => {
+    it('builds the watching and run-start status events with the watched file', () => {
+      assert.deepEqual(buildApexRunStatusEvent('watching', '/tmp/scratch.apex'), {
+        type: 'status',
+        status: 'watching',
+        file: '/tmp/scratch.apex',
+      });
+
+      assert.deepEqual(buildApexRunStatusEvent('run-start', '/tmp/scratch.apex'), {
+        type: 'status',
+        status: 'run-start',
+        file: '/tmp/scratch.apex',
+      });
+    });
+
+    it('carries the single-shot result fields on the run event', () => {
+      const result = buildApexRunResult({ compiled: true, success: true, logs: debugLog }, 42);
+
+      const event = buildApexRunEvent(result);
+
+      assert.equal(event.type, 'run');
+      assert.equal(event.success, true);
+      assert.equal(event.duration, 42);
+      assert.deepEqual(event.logLines, result.logLines);
+    });
+
+    it('builds an error event', () => {
+      assert.deepEqual(buildApexRunErrorEvent('boom'), { type: 'error', message: 'boom' });
+    });
+
+    it('serializes each event onto a single line', () => {
+      const result = buildApexRunResult(
+        {
+          compiled: true,
+          success: false,
+          logs: debugLog,
+          diagnostic: [
+            { compileProblem: '', exceptionMessage: 'boom', exceptionStackTrace: 'line 1\nline 2' },
+          ],
+        },
+        42
+      );
+
+      const line = serializeApexRunEvent(buildApexRunEvent(result));
+
+      assert.equal(line.includes('\n'), false);
+      assert.deepEqual(JSON.parse(line), { type: 'run', ...result });
     });
   });
 

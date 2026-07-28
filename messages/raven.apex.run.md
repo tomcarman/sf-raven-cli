@@ -28,6 +28,14 @@ Show the full raw log body:
 
 <%= config.bin %> <%= command.id %> --raw
 
+Re-run the file every time it is saved:
+
+<%= config.bin %> <%= command.id %> --watch
+
+Stream machine-readable results from a watch loop:
+
+<%= config.bin %> <%= command.id %> --watch --ndjson
+
 # flags.target-org.summary
 
 Login username or alias for the target org. Uses the default org when omitted.
@@ -44,6 +52,14 @@ Only show USER_DEBUG lines containing this string. Errors and exceptions are alw
 
 Print the full log body instead of filtering to USER_DEBUG and exception lines.
 
+# flags.watch.summary
+
+Re-run the file every time it changes on disk. Press Ctrl+C to stop. Cannot be combined with --json.
+
+# flags.ndjson.summary
+
+Stream machine-readable NDJSON events, one JSON object per line, instead of formatted output. Requires --watch.
+
 # info.executing
 
 Executing anonymous Apex...
@@ -51,6 +67,14 @@ Executing anonymous Apex...
 # info.fileCreated
 
 Created %s.
+
+# info.watching
+
+watching %s
+
+# info.exiting
+
+Exiting.
 
 # prompt.createFile
 
@@ -63,3 +87,11 @@ No target org found. Specify one with --target-org or set a default org.
 # error.fileNotFound
 
 Apex file not found: %s
+
+# error.watchWithJson
+
+--watch cannot be combined with --json. Use --ndjson for machine-readable watch output.
+
+# error.ndjsonRequiresWatch
+
+--ndjson requires --watch.
