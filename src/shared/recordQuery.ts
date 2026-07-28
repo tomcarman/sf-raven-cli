@@ -218,7 +218,11 @@ const resolveRequestedFields = (
   return resolved;
 };
 
-const buildFieldChunks = (fields: string[], buildSoql: (chunkFields: string[]) => string): string[][] => {
+/**
+ * Splits a field list into as few chunks as will fit the URL length limit,
+ * repeating the first field (the Id) in every chunk so results can be merged.
+ */
+export const buildFieldChunks = (fields: string[], buildSoql: (chunkFields: string[]) => string): string[][] => {
   if (getEncodedQueryLength(buildSoql(fields)) <= maxEncodedQueryLength) {
     return [fields];
   }
