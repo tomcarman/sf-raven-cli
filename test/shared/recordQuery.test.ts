@@ -131,6 +131,7 @@ const createProjectingConnection = (
 
 const baseResult = (overrides: Partial<RecordQueryResult> = {}): RecordQueryResult => ({
   sobject: 'Account',
+  usedTooling: false,
   fields: ['Id', 'Name'],
   idsRequested: [accountId],
   idsFound: [accountId],
@@ -158,6 +159,7 @@ describe('record query', () => {
 
       assert.deepEqual(result, {
         sobject: 'Account',
+        usedTooling: false,
         fields: ['Id', 'Name'],
         idsRequested: [accountId],
         idsFound: [accountId],
@@ -330,6 +332,7 @@ describe('record query', () => {
       const result = await queryRecords(connection, { recordIds: apexClassId });
 
       assert.equal(result.sobject, 'ApexClass');
+      assert.equal(result.usedTooling, true, 'callers need to know history is unavailable');
       assert.equal(connection.describeGlobalCalls, 1);
       assert.equal(connection.toolingDescribeGlobalCalls, 1);
       assert.deepEqual(result.records, [{ Id: apexClassId, Name: 'MyClass' }]);

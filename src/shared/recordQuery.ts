@@ -23,6 +23,8 @@ export type RecordQueryOptions = {
 
 export type RecordQueryResult = {
   sobject: string;
+  /** True when the record was found through the Tooling API, not the data API. */
+  usedTooling: boolean;
   fields: string[];
   idsRequested: string[];
   idsFound: string[];
@@ -48,7 +50,7 @@ const columnGap = '  ';
 
 export const queryRecords = async (connection: RecordQueryConnection, options: RecordQueryOptions): Promise<RecordQueryResult> => {
   const idsRequested = parseRecordIds(options.recordIds);
-  const { api, sobject } = await detectSObject(connection, idsRequested[0]);
+  const { api, sobject, usedTooling } = await detectSObject(connection, idsRequested[0]);
   const fields = await buildFieldList(api, sobject, options);
 
   const buildSoql = (chunkFields: string[]): string =>
@@ -73,6 +75,7 @@ export const queryRecords = async (connection: RecordQueryConnection, options: R
 
   return {
     sobject,
+    usedTooling,
     fields,
     idsRequested,
     idsFound: records.map((record) => String(record.Id)),
@@ -135,18 +138,18 @@ const parseRecordIds = (recordIds: string): string[] => {
 const detectSObject = async (
   connection: RecordQueryConnection,
   id: string
-): Promise<{ api: RecordQueryApi; sobject: string }> => {
+): Promise<{ api: RecordQueryApi; sobject: string; usedTooling: boolean }> => {
   const keyPrefix = id.slice(0, keyPrefixLength);
   const regularSObject = await findSObjectByPrefix(connection, keyPrefix);
 
   if (regularSObject != null) {
-    return { api: connection, sobject: regularSObject };
+    return { api: connection, sobject: regularSObject, usedTooling: false };
   }
 
   const toolingSObject = await findSObjectByPrefix(connection.tooling, keyPrefix);
 
   if (toolingSObject != null) {
-    return { api: connection.tooling, sobject: toolingSObject };
+    return { api: connection.tooling, sobject: toolingSObject, usedTooling: true };
   }
 
   throw messages.createError('error.unknownKeyPrefix', [keyPrefix]);

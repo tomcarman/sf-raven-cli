@@ -76,6 +76,22 @@ Fetching record(s)...
 
 No record was found for the following id(s): %s
 
+# flags.history.summary
+
+Also show field history for each record, when history tracking is enabled on the object. Not supported with csv or toon output.
+
+# info.noHistoryRows
+
+No tracked changes.
+
+# warning.noHistory
+
+%s does not have field history tracking, so there is no history to show.
+
+# error.historyFormat
+
+--history cannot be combined with %s output. Use table or json.
+
 # error.noRecordIds
 
 No record ids were supplied.
