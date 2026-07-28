@@ -142,6 +142,9 @@
           "event": {
             "description": "Commands relating to Platform Events.",
             "subtopics": {
+              "publish": {
+                "description": "Publish a Platform Event."
+              },
               "subscribe": {
                 "description": "Subscribe to Platform Events."
               }
