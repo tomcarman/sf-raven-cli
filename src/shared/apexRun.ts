@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import type { ApexDiagnostic, ExecuteAnonymousResponse } from '@salesforce/apex-node';
 import { formatLogHeader, parseLogLines } from './apexLogRender.js';
+import { stripAnsi } from './table.js';
 
 export const DEFAULT_APEX_FILE = 'scripts/apex/scratch.apex';
 export const STARTER_APEX_BODY = "System.debug('hello');\n";
@@ -14,10 +15,6 @@ export type ApexRunResult = {
   logLines: string[];
   duration: number;
 };
-
-const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
-
-export const stripAnsi = (value: string): string => value.replace(ansiPattern, '');
 
 /**
  * apex-node reports line/column on the diagnostic rather than in the message, so

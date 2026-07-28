@@ -7,8 +7,8 @@ import {
   buildApexRunStatusEvent,
   renderApexRun,
   serializeApexRunEvent,
-  stripAnsi,
 } from '../../src/shared/apexRun.js';
+import { stripAnsi } from '../../src/shared/table.js';
 
 const debugLog = ['10:00:00.1 (1)|USER_DEBUG|[3]|DEBUG|hello', '10:00:00.2 (2)|USER_DEBUG|[4]|DEBUG|goodbye'].join('\n');
 

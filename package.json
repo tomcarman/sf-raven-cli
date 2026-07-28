@@ -121,6 +121,9 @@
               },
               "field": {
                 "description": "Find everywhere a field is referenced across the org's metadata."
+              },
+              "jobs": {
+                "description": "Show async and scheduled jobs running in an org."
               }
             }
           },
