@@ -1070,6 +1070,21 @@
     "@pnpm/network.ca-file" "^1.0.1"
     config-chain "^1.1.11"
 
+"@salesforce/apex-node@^8.4.39":
+  version "8.4.39"
+  resolved "https://registry.npmjs.org/@salesforce/apex-node/-/apex-node-8.4.39.tgz"
+  integrity sha512-zmE6FyBJsskUpVeZxJwFmyCxwDv6Ab3ApJ2FRyWBwX8QBlMnvyV4KqCxPoOxCW6zgl5Af9fw/3aVKNhnrMC+mA==
+  dependencies:
+    "@salesforce/core" "^8.32.6"
+    "@salesforce/kit" "^3.2.6"
+    "@types/istanbul-reports" "^3.0.4"
+    fast-glob "^3.3.2"
+    faye "1.4.1"
+    istanbul-lib-coverage "^3.2.2"
+    istanbul-lib-report "^3.0.1"
+    istanbul-reports "^3.2.0"
+    json-stream-stringify "^3.1.7"
+
 "@salesforce/cli-plugins-testkit@^5.3.58":
   version "5.3.64"
   resolved "https://registry.npmjs.org/@salesforce/cli-plugins-testkit/-/cli-plugins-testkit-5.3.64.tgz"
@@ -1086,7 +1101,7 @@
     strip-ansi "6.0.1"
     ts-retry-promise "^0.8.1"
 
-"@salesforce/core@^8.2.3", "@salesforce/core@^8.23.1", "@salesforce/core@^8.31.2", "@salesforce/core@^8.32.2", "@salesforce/core@^8.5.1":
+"@salesforce/core@^8.2.3", "@salesforce/core@^8.23.1", "@salesforce/core@^8.31.2", "@salesforce/core@^8.32.2", "@salesforce/core@^8.32.6", "@salesforce/core@^8.5.1":
   version "8.32.6"
   resolved "https://registry.npmjs.org/@salesforce/core/-/core-8.32.6.tgz"
   integrity sha512-ZR973WoqCgi6cR58WhgokbHVZOaADNKHiuM1FAwS5pTLQnC91xYi04i2e/gpAX2AUf7Ya6zjbusYtZNpSyKKAQ==
@@ -1465,6 +1480,25 @@
   version "4.0.4"
   resolved "https://registry.npmjs.org/@types/http-cache-semantics/-/http-cache-semantics-4.0.4.tgz"
   integrity sha512-1m0bIFVc7eJWyve9S0RnuRgcQqF/Xd5QsUZAZeQFr1Q3/p9JWoQQEqmVy+DPTNpGXwhgIetAoYF8JSc33q29QA==
+
+"@types/istanbul-lib-coverage@*":
+  version "2.0.6"
+  resolved "https://registry.npmjs.org/@types/istanbul-lib-coverage/-/istanbul-lib-coverage-2.0.6.tgz"
+  integrity sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w==
+
+"@types/istanbul-lib-report@*":
+  version "3.0.3"
+  resolved "https://registry.npmjs.org/@types/istanbul-lib-report/-/istanbul-lib-report-3.0.3.tgz"
+  integrity sha512-NQn7AHQnk/RSLOxrBbGyJM/aVQ+pjj5HCgasFxc0K/KhoATfQ/47AyUl15I2yBUpihjmas+a+VJBOqecrFH+uA==
+  dependencies:
+    "@types/istanbul-lib-coverage" "*"
+
+"@types/istanbul-reports@^3.0.4":
+  version "3.0.4"
+  resolved "https://registry.npmjs.org/@types/istanbul-reports/-/istanbul-reports-3.0.4.tgz"
+  integrity sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ==
+  dependencies:
+    "@types/istanbul-lib-report" "*"
 
 "@types/js-yaml@^4.0.9":
   version "4.0.9"
@@ -3431,7 +3465,7 @@ faye-websocket@>=0.9.1:
   dependencies:
     websocket-driver ">=0.5.1"
 
-faye@^1.4.0, faye@^1.4.1:
+faye@^1.4.0, faye@^1.4.1, faye@1.4.1:
   version "1.4.1"
   resolved "https://registry.npmjs.org/faye/-/faye-1.4.1.tgz"
   integrity sha512-Cg/khikhqlvumHO3efwx2tps2ZgQRjUMrO24G0quz7MMzRYYaEjU224YFXOeuPIvanRegIchVxj6pmHK1W0ikA==
@@ -4470,7 +4504,7 @@ isexe@^2.0.0:
   resolved "https://registry.npmjs.org/isexe/-/isexe-2.0.0.tgz"
   integrity sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==
 
-istanbul-lib-coverage@^3.0.0, istanbul-lib-coverage@^3.2.0:
+istanbul-lib-coverage@^3.0.0, istanbul-lib-coverage@^3.2.0, istanbul-lib-coverage@^3.2.2:
   version "3.2.2"
   resolved "https://registry.npmjs.org/istanbul-lib-coverage/-/istanbul-lib-coverage-3.2.2.tgz"
   integrity sha512-O8dpsF+r0WV/8MNRKfnmrtCWhuKjxrq2w+jpzBL5UZKTi2LeVWnWOmWRxFlesJONmc+wLAGvKQZEOanko0LFTg==
@@ -4504,7 +4538,7 @@ istanbul-lib-processinfo@^2.0.2:
     rimraf "^3.0.0"
     uuid "^8.3.2"
 
-istanbul-lib-report@^3.0.0:
+istanbul-lib-report@^3.0.0, istanbul-lib-report@^3.0.1:
   version "3.0.1"
   resolved "https://registry.npmjs.org/istanbul-lib-report/-/istanbul-lib-report-3.0.1.tgz"
   integrity sha512-GCfE1mtsHGOELCU8e/Z7YWzpmybrx/+dSTfLrvY8qRmaY6zXTKWn6WQIjaAFw069icm6GVMNkgu0NzI4iPZUNw==
@@ -4522,10 +4556,10 @@ istanbul-lib-source-maps@^4.0.0:
     istanbul-lib-coverage "^3.0.0"
     source-map "^0.6.1"
 
-istanbul-reports@^3.0.2:
-  version "3.1.7"
-  resolved "https://registry.npmjs.org/istanbul-reports/-/istanbul-reports-3.1.7.tgz"
-  integrity sha512-BewmUXImeuRk2YY0PVbxgKAysvhRPUQE0h5QRM++nVWyubKGV0l8qQ5op8+B2DOmwSe63Jivj0BjkPQVf8fP5g==
+istanbul-reports@^3.0.2, istanbul-reports@^3.2.0:
+  version "3.2.0"
+  resolved "https://registry.npmjs.org/istanbul-reports/-/istanbul-reports-3.2.0.tgz"
+  integrity sha512-HGYWWS/ehqTV3xN10i23tkPkpH46MLCIMFNCaaKNavAXTF1RkqxawEPtnjnGZ6XKSInBKkiOA5BKS+aZiY3AvA==
   dependencies:
     html-escaper "^2.0.0"
     istanbul-lib-report "^3.0.0"
@@ -4644,6 +4678,11 @@ json-stable-stringify-without-jsonify@^1.0.1:
   version "1.0.1"
   resolved "https://registry.npmjs.org/json-stable-stringify-without-jsonify/-/json-stable-stringify-without-jsonify-1.0.1.tgz"
   integrity sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==
+
+json-stream-stringify@^3.1.7:
+  version "3.1.7"
+  resolved "https://registry.npmjs.org/json-stream-stringify/-/json-stream-stringify-3.1.7.tgz"
+  integrity sha512-F4MWetLtY42YMaAKw5cV4e47zMD5aOT+tjjQWjX18ACtdkQ5Y/vrcfbcQ107Rh+MXjOCIx4KhW0wPmOvG8iQ5w==
 
 json5@^1.0.2:
   version "1.0.2"
