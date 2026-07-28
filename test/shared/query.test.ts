@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { escapeCsvValue, getEncodedQueryLength, isValidSalesforceId, maxEncodedQueryLength } from '../../src/shared/query.js';
+import {
+  escapeCsvValue,
+  escapeSoqlString,
+  getEncodedQueryLength,
+  isValidSalesforceId,
+  maxEncodedQueryLength,
+  parseSObjectList,
+} from '../../src/shared/query.js';
 
 describe('shared query helpers', () => {
   describe('isValidSalesforceId', () => {
@@ -68,6 +75,31 @@ describe('shared query helpers', () => {
 
     it('exposes the safe REST url length limit of 14,000 bytes', () => {
       assert.equal(maxEncodedQueryLength, 14_000);
+    });
+  });
+
+  describe('parseSObjectList', () => {
+    it('splits a comma list and trims each name', () => {
+      assert.deepEqual(parseSObjectList('Account, Contact ,Opportunity'), ['Account', 'Contact', 'Opportunity']);
+    });
+
+    it('drops empty entries and repeats', () => {
+      assert.deepEqual(parseSObjectList('Account,,Account, '), ['Account']);
+    });
+
+    it('returns nothing for an empty flag', () => {
+      assert.deepEqual(parseSObjectList(''), []);
+    });
+  });
+
+  describe('escapeSoqlString', () => {
+    it('escapes quotes and backslashes so a literal cannot break out', () => {
+      assert.equal(escapeSoqlString("O'Brien"), "O\\'Brien");
+      assert.equal(escapeSoqlString('back\\slash'), 'back\\\\slash');
+    });
+
+    it('leaves an ordinary value alone', () => {
+      assert.equal(escapeSoqlString('Enterprise'), 'Enterprise');
     });
   });
 });

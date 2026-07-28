@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { escapeCsvValue } from '../../../../shared/query.js';
+import { escapeCsvValue, parseSObjectList } from '../../../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.object.display.fields');
@@ -67,7 +67,7 @@ export default class ObjectDisplayFields extends SfCommand<ObjectDisplayFieldsRe
 
     const org = flags['target-org'];
     const conn = org.getConnection();
-    const sobjects = parseSobjects(flags.sobject);
+    const sobjects = parseSObjectList(flags.sobject);
     let records: Record[] = [];
 
     this.spinner.start('Loading...');
@@ -118,15 +118,6 @@ export default class ObjectDisplayFields extends SfCommand<ObjectDisplayFieldsRe
     return result as unknown as ObjectDisplayFieldsResult;
   }
 }
-
-const parseSobjects = (sobjectFlag: string): string[] => {
-  const sobjects = sobjectFlag
-    .split(',')
-    .map((sobject) => sobject.trim())
-    .filter((sobject) => sobject.length > 0);
-
-  return Array.from(new Set(sobjects));
-};
 
 type FieldRecord = {
   EntityDefinition: { QualifiedApiName: string };

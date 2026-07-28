@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { escapeCsvValue } from '../../../../shared/query.js';
+import { escapeCsvValue, parseSObjectList } from '../../../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.object.display.validationrules');
@@ -61,7 +61,7 @@ export default class ObjectDisplayValidationRules extends SfCommand<ObjectDispla
 
     const org = flags['target-org'];
     const conn = org.getConnection() as unknown as ToolingConnection;
-    const sobjects = parseSobjects(flags.sobject);
+    const sobjects = parseSObjectList(flags.sobject);
     const records: ValidationRuleRecord[] = [];
 
     this.spinner.start('Loading...');
@@ -95,15 +95,6 @@ export default class ObjectDisplayValidationRules extends SfCommand<ObjectDispla
     return { totalSize: filteredRecords.length, done: true, records: filteredRecords };
   }
 }
-
-const parseSobjects = (sobjectFlag: string): string[] => {
-  const sobjects = sobjectFlag
-    .split(',')
-    .map((sobject) => sobject.trim())
-    .filter((sobject) => sobject.length > 0);
-
-  return Array.from(new Set(sobjects));
-};
 
 const getTableColumns = (
   includeObjectColumn: boolean

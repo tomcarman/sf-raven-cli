@@ -20,6 +20,16 @@ export const escapeCsvValue = (value: unknown): string => {
 
 export const getEncodedQueryLength = (query: string): number => Buffer.byteLength(encodeURIComponent(query), 'utf8');
 
+/** Splits an -s/--sobject flag into a de-duplicated list of API names. */
+export const parseSObjectList = (sobjectFlag: string): string[] => {
+  const sobjects = sobjectFlag
+    .split(',')
+    .map((sobject) => sobject.trim())
+    .filter((sobject) => sobject.length > 0);
+
+  return Array.from(new Set(sobjects));
+};
+
 /** Escapes a value for interpolation inside a single-quoted SOQL literal. */
 export const escapeSoqlString = (value: string): string => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 

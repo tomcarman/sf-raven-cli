@@ -8,8 +8,8 @@ import {
   buildFlowTarget,
   buildRecordTarget,
   buildSObjectTarget,
+  candidateLabel,
   fuzzyCandidates,
-  isRecordId,
   launchBrowser,
   matchSObjects,
   type OpenCandidate,
@@ -19,7 +19,7 @@ import {
 import { findAlias, mergeAliases, type AliasDefinition } from '../../shared/openAliases.js';
 import { readRavenPluginConfig } from '../../shared/pluginConfig.js';
 import { isPromptForceCloseError } from '../../shared/pull.js';
-import { escapeSoqlString } from '../../shared/query.js';
+import { escapeSoqlString, isValidSalesforceId } from '../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.open');
@@ -108,7 +108,7 @@ const resolveTarget = async (
   aliases: Readonly<Record<string, AliasDefinition>>,
   ux: Ux
 ): Promise<Resolution> => {
-  if (isRecordId(thing)) {
+  if (isValidSalesforceId(thing)) {
     return { status: 'resolved', target: buildRecordTarget(thing) };
   }
 
@@ -159,14 +159,14 @@ const findCandidates = async (
       return metadata;
     }
 
-    return fuzzyCandidates(thing, aliases, sobjects);
+    return fuzzyCandidates(thing, aliases, sobjects, messages.getMessage('label.kind.alias'));
   } finally {
     ux.spinner.stop();
   }
 };
 
 const toSObjectCandidate = (sobject: SObjectSummary): OpenCandidate => ({
-  label: `${sobject.label} (${sobject.name})`,
+  label: candidateLabel(sobject.label, sobject.name),
   target: buildSObjectTarget(sobject.name),
 });
 
@@ -203,14 +203,14 @@ const queryMetadata = async (connection: Connection, predicate: string): Promise
 
   return [
     ...classes.records.map((record) => ({
-      label: `${record.Name} (Apex class)`,
+      label: candidateLabel(record.Name, messages.getMessage('label.kind.apexClass')),
       target: buildApexClassTarget(record.Name, record.Id),
     })),
     // A definition with no version has nothing to open in Flow Builder.
     ...flows.records
       .filter((record): record is FlowDefinitionRecord & { LatestVersionId: string } => record.LatestVersionId != null)
       .map((record) => ({
-        label: `${record.DeveloperName} (Flow)`,
+        label: candidateLabel(record.DeveloperName, messages.getMessage('label.kind.flow')),
         target: buildFlowTarget(record.DeveloperName, record.LatestVersionId),
       })),
   ];

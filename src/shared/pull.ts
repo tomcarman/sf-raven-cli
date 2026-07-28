@@ -395,7 +395,6 @@ const writeRemoteMetadataTypes = async (projectRoot: string, metadataTypes: stri
   });
 };
 
-
 const getLocalMetadataTypes = (projectRoot: string): string[] => {
   const metadataTypes = new Set<string>();
 

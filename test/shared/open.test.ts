@@ -6,7 +6,6 @@ import {
   buildRecordTarget,
   buildSObjectTarget,
   fuzzyCandidates,
-  isRecordId,
   matchSObjects,
   openerCommand,
   sobjectBaseName,
@@ -14,29 +13,6 @@ import {
 import { builtInAliases } from '../../src/shared/openAliases.js';
 
 describe('open targets', () => {
-  describe('isRecordId', () => {
-    it('accepts 15- and 18-character ids', () => {
-      assert.equal(isRecordId('0015g00000ABCDE'), true);
-      assert.equal(isRecordId('0015g00000ABCDEfGH'), true);
-    });
-
-    it('accepts tooling object ids', () => {
-      assert.equal(isRecordId('01p5g00000XyZaBAAV'), true);
-    });
-
-    it('rejects lengths either side of 15 and 18', () => {
-      for (const candidate of ['0015g00000ABCD', '0015g00000ABCDEf', '0015g00000ABCDEfGHI']) {
-        assert.equal(isRecordId(candidate), false, candidate);
-      }
-    });
-
-    it('rejects anything that is not alphanumeric', () => {
-      assert.equal(isRecordId('Account'), false);
-      assert.equal(isRecordId('perm-sets-aaaaa'), false);
-      assert.equal(isRecordId('My_Object__c___'), false);
-    });
-  });
-
   describe('buildRecordTarget', () => {
     it('opens the bare id so Salesforce picks the right view', () => {
       assert.deepEqual(buildRecordTarget('0015g00000ABCDEfGH'), {
@@ -146,35 +122,33 @@ describe('open targets', () => {
     ];
 
     it('matches aliases by substring of the key or a synonym', () => {
-      const labels = fuzzyCandidates('perm', builtInAliases, []).map((candidate) => candidate.label);
+      const labels = fuzzyCandidates('perm', builtInAliases, [], 'Setup page').map((candidate) => candidate.label);
 
       assert.deepEqual(labels, ['perm-set-groups (Setup page)', 'perm-sets (Setup page)']);
     });
 
     it('matches sObjects by substring of the API name or label', () => {
-      const names = fuzzyCandidates('accou', builtInAliases, sobjects).map((candidate) => candidate.target.name);
+      const names = fuzzyCandidates('accou', builtInAliases, sobjects, 'Setup page').map((candidate) => candidate.target.name);
 
       assert.deepEqual(names, ['Account', 'AccountContactRole']);
     });
 
     it('is case-insensitive', () => {
-      assert.equal(fuzzyCandidates('INVOI', builtInAliases, sobjects).length, 1);
+      assert.equal(fuzzyCandidates('INVOI', builtInAliases, sobjects, 'Setup page').length, 1);
     });
 
     it('lists alias hits before sObject hits', () => {
-      const kinds = fuzzyCandidates('class', builtInAliases, [
-        { name: 'ApexClassMirror__c', label: 'Apex Class Mirror' },
-      ]).map((candidate) => candidate.target.kind);
+      const kinds = fuzzyCandidates('class', builtInAliases, [{ name: 'ApexClassMirror__c', label: 'Apex Class Mirror' }], 'Setup page').map((candidate) => candidate.target.kind);
 
       assert.deepEqual(kinds, ['alias', 'sobject']);
     });
 
     it('returns nothing when the name matches no category', () => {
-      assert.deepEqual(fuzzyCandidates('zzzzz', builtInAliases, sobjects), []);
+      assert.deepEqual(fuzzyCandidates('zzzzz', builtInAliases, sobjects, 'Setup page'), []);
     });
 
     it('reports each alias once even when the key and a synonym both match', () => {
-      const candidates = fuzzyCandidates('perm-sets', builtInAliases, []);
+      const candidates = fuzzyCandidates('perm-sets', builtInAliases, [], 'Setup page');
 
       assert.deepEqual(
         candidates.map((candidate) => candidate.target.name),

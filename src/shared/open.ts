@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { aliasSearchTerms, setupPathPrefix, type AliasDefinition } from './openAliases.js';
-import { isValidSalesforceId } from './query.js';
 
 /**
  * What `raven open` decided the user meant, and where to send the browser.
@@ -15,8 +14,6 @@ export type OpenTarget = {
 };
 
 export type OpenTargetKind = 'record' | 'sobject' | 'alias' | 'apexClass' | 'flow';
-
-export const isRecordId = isValidSalesforceId;
 
 /**
  * Records are opened by bare Id: Salesforce redirects `/<id>` to whichever view
@@ -101,6 +98,9 @@ export type OpenCandidate = {
   target: OpenTarget;
 };
 
+/** Describes a match in the picker, e.g. "Invoice (Invoice__c)". */
+export const candidateLabel = (name: string, qualifier: string): string => `${name} (${qualifier})`;
+
 /**
  * Last resort once every exact tier has missed: a case-insensitive substring
  * sweep over alias names and sObject names/labels. Deliberately no edit-distance
@@ -109,7 +109,8 @@ export type OpenCandidate = {
 export const fuzzyCandidates = (
   thing: string,
   aliases: Readonly<Record<string, AliasDefinition>>,
-  sobjects: readonly SObjectSummary[]
+  sobjects: readonly SObjectSummary[],
+  aliasQualifier: string
 ): OpenCandidate[] => {
   const needle = thing.toLowerCase();
   const matchesNeedle = (term: string): boolean => term.toLowerCase().includes(needle);
@@ -117,7 +118,7 @@ export const fuzzyCandidates = (
   const aliasHits = [...aliasSearchTerms(aliases)]
     .filter(([, terms]) => terms.some(matchesNeedle))
     .map(([alias]) => ({
-      label: `${alias} (Setup page)`,
+      label: candidateLabel(alias, aliasQualifier),
       target: buildAliasTarget(alias, aliases[alias].path),
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
@@ -125,7 +126,7 @@ export const fuzzyCandidates = (
   const sobjectHits = sobjects
     .filter((sobject) => matchesNeedle(sobject.name) || matchesNeedle(sobject.label))
     .map((sobject) => ({
-      label: `${sobject.label} (${sobject.name})`,
+      label: candidateLabel(sobject.label, sobject.name),
       target: buildSObjectTarget(sobject.name),
     }))
     .sort((left, right) => left.label.localeCompare(right.label));

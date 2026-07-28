@@ -116,6 +116,31 @@ export const formatRecordCsv = (result: RecordOutput): string => {
 
 export const formatRecordToon = (result: RecordOutput): string => encode(result.records);
 
+export const recordFormats = ['table', 'json', 'csv', 'toon'] as const;
+
+export type RecordFormat = (typeof recordFormats)[number];
+
+/**
+ * The non-table formats are identical across the record commands; only the
+ * table differs, so each command supplies its own.
+ */
+export const formatRecordOutput = (
+  result: RecordOutput,
+  format: RecordFormat,
+  renderTableOutput: () => string
+): string => {
+  switch (format) {
+    case 'json':
+      return formatRecordJson(result);
+    case 'csv':
+      return formatRecordCsv(result);
+    case 'toon':
+      return formatRecordToon(result);
+    default:
+      return renderTableOutput();
+  }
+};
+
 const parseRecordIds = (recordIds: string): string[] => {
   const ids = recordIds
     .split(',')

@@ -12,6 +12,7 @@ import {
   parseTrustStatus,
   trustStatusUrl,
   type ApiVersionEntry,
+  type LimitRow,
   type LimitsResponse,
   type OrganizationRecord,
   type OrgIdentity,
@@ -31,7 +32,7 @@ const topLicenses = 5;
 
 export type OrgInfoResult = {
   identity: OrgIdentity;
-  limits: ReturnType<typeof buildLimitRows>;
+  limits: LimitRow[];
   users: OrgUsers;
   release: ReleaseInfo;
 };
@@ -116,7 +117,7 @@ const fetchHighestApiVersion = async (connection: Connection): Promise<string> =
   return highestApiVersion(versions);
 };
 
-const fetchLimits = async (connection: Connection): Promise<ReturnType<typeof buildLimitRows>> => {
+const fetchLimits = async (connection: Connection): Promise<LimitRow[]> => {
   const limits = await connection.request<LimitsResponse>({
     method: 'GET',
     url: `/services/data/v${connection.getApiVersion()}/limits`,

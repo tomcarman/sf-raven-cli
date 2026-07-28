@@ -18,7 +18,7 @@ import {
   type RecordTypeAvailability,
   type RecordTypeColumn,
 } from '../../../../shared/picklists.js';
-import { escapeCsvValue } from '../../../../shared/query.js';
+import { escapeCsvValue, parseSObjectList } from '../../../../shared/query.js';
 import { renderTable, type TableColumn } from '../../../../shared/table.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -57,7 +57,7 @@ export default class ObjectDisplayPicklists extends SfCommand<ObjectDisplayPickl
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
 
     const connection = flags['target-org'].getConnection();
-    const sobjects = parseSobjects(flags.sobject);
+    const sobjects = parseSObjectList(flags.sobject);
 
     this.spinner.start(messages.getMessage('info.loading'));
 
@@ -184,15 +184,6 @@ const describeFields = async (connection: Connection, sobject: string): Promise<
   } catch {
     throw messages.createError('error.unknownSObject', [sobject]);
   }
-};
-
-const parseSobjects = (sobjectFlag: string): string[] => {
-  const sobjects = sobjectFlag
-    .split(',')
-    .map((sobject) => sobject.trim())
-    .filter((sobject) => sobject.length > 0);
-
-  return Array.from(new Set(sobjects));
 };
 
 const printObject = (ux: Ux, object: ObjectPicklists): void => {

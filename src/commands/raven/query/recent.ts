@@ -15,20 +15,17 @@ import {
 } from '../../../shared/recentQuery.js';
 import {
   formatRecordCell,
-  formatRecordCsv,
-  formatRecordJson,
-  formatRecordToon,
+  formatRecordOutput,
+  recordFormats,
   resolveFieldValue,
   stripAttributes,
+  type RecordFormat,
   type RecordOutput,
 } from '../../../shared/recordQuery.js';
 import { renderTable, type TableColumn } from '../../../shared/table.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.recent');
-
-const recordFormats = ['table', 'json', 'csv', 'toon'] as const;
-type RecordFormat = (typeof recordFormats)[number];
 
 const recordTypeField = 'RecordType.DeveloperName';
 
@@ -147,18 +144,10 @@ const formatRecentOutput = (
   format: RecordFormat,
   sortField: string,
   truncate: number
-): string => {
-  switch (format) {
-    case 'json':
-      return formatRecordJson(output);
-    case 'csv':
-      return formatRecordCsv(output);
-    case 'toon':
-      return formatRecordToon(output);
-    default:
-      return renderTable(output.records, recentColumns(output.fields, sortField, truncate)).join('\n');
-  }
-};
+): string =>
+  formatRecordOutput(output, format, () =>
+    renderTable(output.records, recentColumns(output.fields, sortField, truncate)).join('\n')
+  );
 
 /**
  * One column per field, with the column being sorted on carrying its relative

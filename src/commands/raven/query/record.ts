@@ -13,11 +13,11 @@ import {
 } from '../../../shared/recordHistory.js';
 import { renderTable, type TableColumn } from '../../../shared/table.js';
 import {
-  formatRecordCsv,
-  formatRecordJson,
+  formatRecordOutput,
   formatRecordTable,
-  formatRecordToon,
   queryRecords,
+  recordFormats,
+  type RecordFormat,
   type RecordQueryConnection,
   type RecordQueryResult,
   type RecordTableOptions,
@@ -30,9 +30,6 @@ export type QueryRecordResult = Pick<RecordQueryResult, 'sobject' | 'idsRequeste
   /** Field history rows keyed by record Id, present only with --history. */
   history?: Record<string, HistoryRow[]>;
 };
-
-const recordFormats = ['table', 'json', 'csv', 'toon'] as const;
-type RecordFormat = (typeof recordFormats)[number];
 
 export default class QueryRecord extends SfCommand<QueryRecordResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -109,7 +106,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
     const history = flags.history ? await this.loadHistory(org.getConnection(), result) : undefined;
 
     ux.log(
-      formatRecordOutput(result, flags.format, { truncate: flags.truncate, omitNull: flags['omit-null'] }, history)
+      formatOutput(result, flags.format, { truncate: flags.truncate, omitNull: flags['omit-null'] }, history)
     );
 
     if (history != null && flags.format === 'table') {
@@ -166,24 +163,19 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
   }
 }
 
-const formatRecordOutput = (
+const formatOutput = (
   result: RecordQueryResult,
   format: RecordFormat,
   tableOptions: RecordTableOptions,
   history: Record<string, HistoryRow[]> | undefined
 ): string => {
-  switch (format) {
-    case 'json':
-      return history == null
-        ? formatRecordJson(result)
-        : JSON.stringify({ records: result.records, history }, null, 2);
-    case 'csv':
-      return formatRecordCsv(result);
-    case 'toon':
-      return formatRecordToon(result);
-    default:
-      return formatRecordTable(result, tableOptions);
+  // History rides along in the json format, which the shared formatter has no
+  // reason to know about.
+  if (format === 'json' && history != null) {
+    return JSON.stringify({ records: result.records, history }, null, 2);
   }
+
+  return formatRecordOutput(result, format, () => formatRecordTable(result, tableOptions));
 };
 
 const renderHistorySections = (

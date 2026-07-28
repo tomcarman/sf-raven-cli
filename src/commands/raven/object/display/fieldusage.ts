@@ -18,7 +18,7 @@ import {
   type FieldUsage,
   type ObjectFieldUsage,
 } from '../../../../shared/fieldUsage.js';
-import { escapeCsvValue } from '../../../../shared/query.js';
+import { escapeCsvValue, parseSObjectList } from '../../../../shared/query.js';
 import { buildFieldChunks } from '../../../../shared/recordQuery.js';
 import { renderTable, usageBar, type TableColumn } from '../../../../shared/table.js';
 
@@ -71,7 +71,7 @@ export default class ObjectDisplayFieldusage extends SfCommand<ObjectDisplayFiel
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
 
     const connection = flags['target-org'].getConnection();
-    const sobjects = parseSobjects(flags.sobject);
+    const sobjects = parseSObjectList(flags.sobject);
     const objects: ObjectFieldUsage[] = [];
 
     this.spinner.start(messages.getMessage(flags.deep ? 'info.counting' : 'info.sampling'));
@@ -233,15 +233,6 @@ const fetchSample = async (
   }
 
   return [...merged.values()];
-};
-
-const parseSobjects = (sobjectFlag: string): string[] => {
-  const sobjects = sobjectFlag
-    .split(',')
-    .map((sobject) => sobject.trim())
-    .filter((sobject) => sobject.length > 0);
-
-  return Array.from(new Set(sobjects));
 };
 
 const printObject = (ux: Ux, object: ObjectFieldUsage): void => {
