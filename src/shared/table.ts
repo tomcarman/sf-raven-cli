@@ -4,6 +4,15 @@ const ansiPattern = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
 export const stripAnsi = (value: string): string => value.replace(ansiPattern, '');
 
+const barWidth = 10;
+
+/** A fixed-width inline bar, for showing a percentage next to its number. */
+export const usageBar = (percent: number): string => {
+  const filled = Math.round((Math.min(100, Math.max(0, percent)) / 100) * barWidth);
+
+  return `${chalk.cyan('█'.repeat(filled))}${chalk.dim('░'.repeat(barWidth - filled))}`;
+};
+
 export type TableColumn<T> = {
   header: string;
   get: (row: T) => string;

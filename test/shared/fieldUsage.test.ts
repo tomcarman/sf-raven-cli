@@ -11,11 +11,10 @@ import {
   selectFields,
   sortFieldUsage,
   toPercent,
-  usageBar,
   type DescribeField,
   type FieldUsage,
 } from '../../src/shared/fieldUsage.js';
-import { stripAnsi } from '../../src/shared/table.js';
+import { stripAnsi, usageBar } from '../../src/shared/table.js';
 
 const field = (overrides: Partial<DescribeField> & { name: string }): DescribeField => ({
   label: overrides.name,

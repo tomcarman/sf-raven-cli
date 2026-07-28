@@ -14,14 +14,13 @@ import {
   selectFields,
   sortFieldUsage,
   toPercent,
-  usageBar,
   type DescribeField,
   type FieldUsage,
   type ObjectFieldUsage,
 } from '../../../../shared/fieldUsage.js';
 import { escapeCsvValue } from '../../../../shared/query.js';
 import { buildFieldChunks } from '../../../../shared/recordQuery.js';
-import { renderTable, type TableColumn } from '../../../../shared/table.js';
+import { renderTable, usageBar, type TableColumn } from '../../../../shared/table.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.object.display.fieldusage');

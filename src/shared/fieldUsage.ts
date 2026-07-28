@@ -30,8 +30,6 @@ export type ObjectFieldUsage = {
   fields: FieldUsage[];
 };
 
-const barWidth = 10;
-
 /**
  * Compound parents (Address, Geolocation, personal Name) carry no value of
  * their own - their components do - so the parent is dropped and the components
@@ -152,12 +150,6 @@ export const buildFieldUsage = (
 /** Dead fields first; alphabetical within a tie. */
 export const sortFieldUsage = (fields: readonly FieldUsage[]): FieldUsage[] =>
   [...fields].sort((left, right) => left.percent - right.percent || left.name.localeCompare(right.name));
-
-export const usageBar = (percent: number): string => {
-  const filled = Math.round((Math.min(100, Math.max(0, percent)) / 100) * barWidth);
-
-  return `${chalk.cyan('█'.repeat(filled))}${chalk.dim('░'.repeat(barWidth - filled))}`;
-};
 
 export const formatPercent = (percent: number): string => `${percent}%`;
 

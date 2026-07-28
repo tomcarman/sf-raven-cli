@@ -207,6 +207,14 @@
               }
             }
           },
+          "org": {
+            "description": "Commands relating to orgs.",
+            "subtopics": {
+              "info": {
+                "description": "Show a summary card for an org."
+              }
+            }
+          },
           "object": {
             "description": "Commands relating to sObjects",
             "subtopics": {
