@@ -20,6 +20,10 @@ Sample more records across several objects:
 
 <%= config.bin %> <%= command.id %> --sobject Account,Contact --sample-size 5000
 
+Get exact org-wide numbers instead of a sample:
+
+<%= config.bin %> <%= command.id %> --sobject Account --deep
+
 Only look at custom fields:
 
 <%= config.bin %> <%= command.id %> --sobject Account --custom-only
@@ -48,6 +52,10 @@ Only report on custom (__c) fields.
 
 How many of the newest records to sample.
 
+# flags.deep.summary
+
+Count every record in the org instead of sampling, with one COUNT query per field. Slower, but exact. Fields that cannot be filtered on keep their sampled figure and are marked.
+
 # flags.csv.summary
 
 Write the results to this file as CSV instead of printing a table.
@@ -55,6 +63,10 @@ Write the results to this file as CSV instead of printing a table.
 # info.sampling
 
 Sampling records...
+
+# info.counting
+
+Counting records...
 
 # info.csvWritten
 

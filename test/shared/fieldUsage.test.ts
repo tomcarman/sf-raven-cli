@@ -1,15 +1,20 @@
 import assert from 'node:assert/strict';
 import {
+  buildDeepCountQuery,
   buildFieldUsage,
   buildSampleQuery,
   countPopulated,
   eligibleFields,
+  formatUsageMethod,
+  isDeepCountable,
   isPopulated,
+  mapWithConcurrency,
   selectFields,
   sortFieldUsage,
   toPercent,
   usageBar,
   type DescribeField,
+  type FieldUsage,
 } from '../../src/shared/fieldUsage.js';
 import { stripAnsi } from '../../src/shared/table.js';
 
@@ -177,6 +182,76 @@ describe('field usage', () => {
         rows.map((row) => row.name),
         before
       );
+    });
+  });
+
+  describe('deep mode', () => {
+    const usage = (overrides: Partial<FieldUsage> = {}): FieldUsage => ({
+      name: 'Industry',
+      label: 'Industry',
+      type: 'picklist',
+      populated: 11,
+      total: 19,
+      percent: 57.9,
+      method: 'deep',
+      ...overrides,
+    });
+
+    describe('isDeepCountable', () => {
+      it('counts filterable fields', () => {
+        assert.equal(isDeepCountable(field({ name: 'Industry', type: 'picklist', filterable: true })), true);
+      });
+
+      it('skips fields that cannot be filtered on', () => {
+        assert.equal(isDeepCountable(field({ name: 'Notes__c', type: 'textarea', filterable: false })), false);
+        assert.equal(isDeepCountable(field({ name: 'Notes__c', type: 'textarea' })), false);
+      });
+
+      it('skips booleans, where "!= null" matches nothing in SOQL', () => {
+        assert.equal(isDeepCountable(field({ name: 'IsDeleted', type: 'boolean', filterable: true })), false);
+      });
+    });
+
+    describe('buildDeepCountQuery', () => {
+      it('counts the records with a value', () => {
+        assert.equal(buildDeepCountQuery('Account', 'Industry'), 'SELECT COUNT() FROM Account WHERE Industry != null');
+      });
+    });
+
+    describe('formatUsageMethod', () => {
+      it('marks a sampled field only when the object was counted deeply', () => {
+        assert.equal(stripAnsi(formatUsageMethod(usage({ method: 'sampled' }), 'deep')), ' (sampled)');
+        assert.equal(formatUsageMethod(usage({ method: 'deep' }), 'deep'), '');
+        assert.equal(formatUsageMethod(usage({ method: 'sampled' }), 'sampled'), '');
+      });
+    });
+
+    describe('mapWithConcurrency', () => {
+      it('returns results in input order', async () => {
+        const results = await mapWithConcurrency([3, 1, 2], 2, async (value) => value * 2);
+
+        assert.deepEqual(results, [6, 2, 4]);
+      });
+
+      it('never exceeds the concurrency limit', async () => {
+        let inFlight = 0;
+        let peak = 0;
+
+        await mapWithConcurrency(Array.from({ length: 20 }, (_, index) => index), 5, async (value) => {
+          inFlight++;
+          peak = Math.max(peak, inFlight);
+          await new Promise((done) => setTimeout(done, 1));
+          inFlight--;
+
+          return value;
+        });
+
+        assert.equal(peak <= 5, true, `peak was ${peak}`);
+      });
+
+      it('handles an empty input', async () => {
+        assert.deepEqual(await mapWithConcurrency([], 5, async (value) => value), []);
+      });
     });
   });
 

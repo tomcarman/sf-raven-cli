@@ -3,12 +3,17 @@ import { Messages, type Connection } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import chalk from 'chalk';
 import {
+  buildDeepCountQuery,
   buildFieldUsage,
   buildSampleQuery,
   countPopulated,
   formatPercent,
+  formatUsageMethod,
+  isDeepCountable,
+  mapWithConcurrency,
   selectFields,
   sortFieldUsage,
+  toPercent,
   usageBar,
   type DescribeField,
   type FieldUsage,
@@ -52,6 +57,10 @@ export default class ObjectDisplayFieldusage extends SfCommand<ObjectDisplayFiel
       min: 1,
       default: 1000,
     }),
+    deep: Flags.boolean({
+      summary: messages.getMessage('flags.deep.summary'),
+      default: false,
+    }),
     csv: Flags.file({
       summary: messages.getMessage('flags.csv.summary'),
       char: 'c',
@@ -66,7 +75,7 @@ export default class ObjectDisplayFieldusage extends SfCommand<ObjectDisplayFiel
     const sobjects = parseSobjects(flags.sobject);
     const objects: ObjectFieldUsage[] = [];
 
-    this.spinner.start(messages.getMessage('info.sampling'));
+    this.spinner.start(messages.getMessage(flags.deep ? 'info.counting' : 'info.sampling'));
 
     try {
       for (const sobject of sobjects) {
@@ -99,7 +108,11 @@ type SampleFlags = {
   field?: string;
   'custom-only': boolean;
   'sample-size': number;
+  deep: boolean;
 };
+
+/** How many COUNT() queries --deep keeps in flight at once. */
+const deepConcurrency = 5;
 
 export const sampleObject = async (
   connection: Connection,
@@ -124,14 +137,55 @@ export const sampleObject = async (
   ]);
 
   const counts = countPopulated(records, fields.map((field) => field.name));
+  const sampled = buildFieldUsage(fields, counts, records.length, 'sampled');
+
+  if (!flags.deep) {
+    return {
+      sobject,
+      method: 'sampled',
+      sampleSize: records.length,
+      totalRecords,
+      fields: sortFieldUsage(sampled),
+    };
+  }
 
   return {
     sobject,
-    method: 'sampled',
+    method: 'deep',
     sampleSize: records.length,
     totalRecords,
-    fields: sortFieldUsage(buildFieldUsage(fields, counts, records.length, 'sampled')),
+    fields: sortFieldUsage(await deepenUsage(connection, sobject, fields, sampled, totalRecords)),
   };
+};
+
+/**
+ * Replaces each sampled figure with a true org-wide count where the field can
+ * be filtered on. Fields that cannot be (long text, encrypted, and friends)
+ * keep their sampled number and stay marked as such.
+ */
+const deepenUsage = async (
+  connection: Connection,
+  sobject: string,
+  fields: readonly DescribeField[],
+  sampled: readonly FieldUsage[],
+  totalRecords: number
+): Promise<FieldUsage[]> => {
+  const countable = fields.filter(isDeepCountable);
+  const counts = await mapWithConcurrency(countable, deepConcurrency, async (field) => {
+    const result = await connection.query(buildDeepCountQuery(sobject, field.name));
+
+    return [field.name, result.totalSize] as const;
+  });
+
+  const deepCounts = new Map(counts);
+
+  return sampled.map((usage) => {
+    const populated = deepCounts.get(usage.name);
+
+    return populated == null
+      ? usage
+      : { ...usage, populated, total: totalRecords, percent: toPercent(populated, totalRecords), method: 'deep' as const };
+  });
 };
 
 const describeObject = async (connection: Connection, sobject: string): Promise<{ fields: DescribeField[] }> => {
@@ -202,17 +256,17 @@ const printObject = (ux: Ux, object: ObjectFieldUsage): void => {
 
   ux.log(`\n${chalk.bold(object.sobject)} ${chalk.dim(scope)}\n`);
 
-  for (const line of renderTable(object.fields, usageColumns)) {
+  for (const line of renderTable(object.fields, usageColumns(object.method))) {
     ux.log(line);
   }
 };
 
-const usageColumns: Array<TableColumn<FieldUsage>> = [
+const usageColumns = (objectMethod: ObjectFieldUsage['method']): Array<TableColumn<FieldUsage>> => [
   { header: 'Field', get: (field) => field.label },
   { header: 'API Name', get: (field) => field.name },
   { header: 'Type', get: (field) => field.type },
   { header: 'Populated', get: (field) => field.populated.toLocaleString() },
-  { header: '%', get: (field) => formatPercent(field.percent) },
+  { header: '%', get: (field) => `${formatPercent(field.percent)}${formatUsageMethod(field, objectMethod)}` },
   { header: 'Usage', get: (field) => usageBar(field.percent) },
 ];
 
