@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { setupPathPrefix } from './openAliases.js';
 
 /**
  * What `raven open` decided the user meant, and where to send the browser.
@@ -12,7 +13,7 @@ export type OpenTarget = {
   path: string;
 };
 
-export type OpenTargetKind = 'record';
+export type OpenTargetKind = 'record' | 'sobject' | 'alias';
 
 const recordIdPattern = /^[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?$/;
 
@@ -24,6 +25,59 @@ export const isRecordId = (thing: string): boolean => recordIdPattern.test(thing
  * objects work too.
  */
 export const buildRecordTarget = (id: string): OpenTarget => ({ kind: 'record', name: id, path: `/${id}` });
+
+export const buildSObjectTarget = (apiName: string): OpenTarget => ({
+  kind: 'sobject',
+  name: apiName,
+  path: `${setupPathPrefix}ObjectManager/${apiName}/Details/view`,
+});
+
+export const buildAliasTarget = (alias: string, path: string): OpenTarget => ({
+  kind: 'alias',
+  name: alias,
+  path: `${setupPathPrefix}${path}`,
+});
+
+export type SObjectSummary = {
+  name: string;
+  label: string;
+};
+
+/**
+ * Strips the namespace prefix and the `__c`-style suffix so `invoice` finds
+ * `acme__Invoice__c`.
+ */
+export const sobjectBaseName = (apiName: string): string => {
+  const withoutSuffix = apiName.replace(/__[a-z]+$/i, '');
+  const segments = withoutSuffix.split('__');
+
+  return segments[segments.length - 1];
+};
+
+/**
+ * Matches in tiers - API name, then API name ignoring namespace/suffix, then
+ * label - and returns the first tier that hits anything, so an exact API name
+ * is never diluted by label collisions.
+ */
+export const matchSObjects = (thing: string, sobjects: readonly SObjectSummary[]): SObjectSummary[] => {
+  const needle = thing.toLowerCase();
+
+  const tiers = [
+    (sobject: SObjectSummary): boolean => sobject.name.toLowerCase() === needle,
+    (sobject: SObjectSummary): boolean => sobjectBaseName(sobject.name).toLowerCase() === needle,
+    (sobject: SObjectSummary): boolean => sobject.label.toLowerCase() === needle,
+  ];
+
+  for (const matches of tiers) {
+    const hits = sobjects.filter(matches);
+
+    if (hits.length > 0) {
+      return hits;
+    }
+  }
+
+  return [];
+};
 
 type OpenerCommand = { command: string; args: string[] };
 

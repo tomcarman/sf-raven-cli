@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
-import { buildRecordTarget, isRecordId, openerCommand } from '../../src/shared/open.js';
+import {
+  buildAliasTarget,
+  buildRecordTarget,
+  buildSObjectTarget,
+  isRecordId,
+  matchSObjects,
+  openerCommand,
+  sobjectBaseName,
+} from '../../src/shared/open.js';
 
 describe('open targets', () => {
   describe('isRecordId', () => {
@@ -32,6 +40,77 @@ describe('open targets', () => {
         name: '0015g00000ABCDEfGH',
         path: '/0015g00000ABCDEfGH',
       });
+    });
+  });
+
+  describe('buildSObjectTarget', () => {
+    it('points at the Object Manager details page', () => {
+      assert.deepEqual(buildSObjectTarget('Invoice__c'), {
+        kind: 'sobject',
+        name: 'Invoice__c',
+        path: '/lightning/setup/ObjectManager/Invoice__c/Details/view',
+      });
+    });
+  });
+
+  describe('buildAliasTarget', () => {
+    it('prefixes the alias path with the Setup root', () => {
+      assert.deepEqual(buildAliasTarget('perm-sets', 'PermSets/home'), {
+        kind: 'alias',
+        name: 'perm-sets',
+        path: '/lightning/setup/PermSets/home',
+      });
+    });
+  });
+
+  describe('sobjectBaseName', () => {
+    it('leaves standard object names alone', () => {
+      assert.equal(sobjectBaseName('Account'), 'Account');
+    });
+
+    it('strips the custom suffix', () => {
+      assert.equal(sobjectBaseName('Invoice__c'), 'Invoice');
+      assert.equal(sobjectBaseName('Setting__mdt'), 'Setting');
+      assert.equal(sobjectBaseName('Order_Event__e'), 'Order_Event');
+    });
+
+    it('strips the namespace as well as the suffix', () => {
+      assert.equal(sobjectBaseName('acme__Invoice__c'), 'Invoice');
+    });
+  });
+
+  describe('matchSObjects', () => {
+    const sobjects = [
+      { name: 'Account', label: 'Account' },
+      { name: 'Invoice__c', label: 'Invoice' },
+      { name: 'acme__Invoice__c', label: 'Managed Invoice' },
+      { name: 'Legacy_Invoice__c', label: 'Invoice' },
+    ];
+
+    it('matches the API name case-insensitively', () => {
+      assert.deepEqual(matchSObjects('account', sobjects), [{ name: 'Account', label: 'Account' }]);
+    });
+
+    it('prefers an exact API name over a base-name or label match', () => {
+      assert.deepEqual(matchSObjects('Invoice__c', sobjects), [{ name: 'Invoice__c', label: 'Invoice' }]);
+    });
+
+    it('falls back to the name without namespace or suffix, returning every hit', () => {
+      assert.deepEqual(
+        matchSObjects('invoice', sobjects).map((match) => match.name),
+        ['Invoice__c', 'acme__Invoice__c']
+      );
+    });
+
+    it('falls back to the label when nothing matches by name', () => {
+      assert.deepEqual(
+        matchSObjects('managed invoice', sobjects).map((match) => match.name),
+        ['acme__Invoice__c']
+      );
+    });
+
+    it('returns nothing when no tier matches', () => {
+      assert.deepEqual(matchSObjects('perm-sets', sobjects), []);
     });
   });
 

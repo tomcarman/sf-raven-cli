@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { SfError, SfProject } from '@salesforce/core';
 import { ComponentSet, type MetadataComponent } from '@salesforce/source-deploy-retrieve';
+import { getRavenPluginConfig, pluginName, resolveProject, type RavenPluginConfig } from './pluginConfig.js';
 
 export type SelectedMetadata = {
   sourceDirs: string[];
@@ -73,14 +74,7 @@ type MetadataTypeDescription = {
   type?: string;
 };
 
-type RavenPluginConfig = {
-  pullRemote?: {
-    metadataTypes?: string[];
-  };
-};
-
 const ignoredDirectoryNames = new Set(['.git', 'node_modules', '.sfdx', '.sf']);
-const pluginName = 'sf-raven';
 
 export const getExistingPackageDirectoryPaths = (projectRoot: string): string[] =>
   getPackageDirectoryPaths(projectRoot).filter((packageDirectoryPath) => existsSync(join(projectRoot, packageDirectoryPath)));
@@ -401,28 +395,6 @@ const writeRemoteMetadataTypes = async (projectRoot: string, metadataTypes: stri
   });
 };
 
-const getRavenPluginConfig = async (project: SfProject): Promise<Readonly<RavenPluginConfig>> => {
-  try {
-    return await project.getPluginConfiguration<RavenPluginConfig>(pluginName);
-  } catch (error) {
-    if (isMissingPluginConfigError(error)) {
-      return {};
-    }
-
-    throw error;
-  }
-};
-
-const isMissingPluginConfigError = (error: unknown): boolean =>
-  error instanceof Error && (error.name === 'NoPluginsDefined' || error.name === 'PluginNotFound');
-
-const resolveProject = async (projectRoot: string): Promise<SfProject | undefined> => {
-  try {
-    return await SfProject.resolve(projectRoot);
-  } catch {
-    return undefined;
-  }
-};
 
 const getLocalMetadataTypes = (projectRoot: string): string[] => {
   const metadataTypes = new Set<string>();
