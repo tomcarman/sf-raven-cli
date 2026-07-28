@@ -4,9 +4,9 @@ Show async and scheduled jobs running in an org.
 
 # description
 
-Prints a snapshot of the org's asynchronous Apex jobs: everything currently in flight (Holding, Queued, Preparing, Processing) plus anything that finished in the last 24 hours, newest first.
+Prints two sections. Async jobs covers the org's asynchronous Apex: everything currently in flight (Holding, Queued, Preparing, Processing) plus anything that finished in the last 24 hours, newest first. Widen the finished-job window with --since and raise the 50-row cap with --limit. Failed jobs print their extended status beneath the row.
 
-Widen the finished-job window with --since and raise the 50-row cap with --limit. Failed jobs print their extended status beneath the row.
+Scheduled jobs lists every CronTrigger, soonest next run first, with the cron expression rendered to English. Jobs that will never fire again sink to the bottom, and any job not in the WAITING state is marked on its row.
 
 # examples
 
@@ -38,6 +38,10 @@ Maximum number of rows to return.
 
 Async jobs
 
+# label.scheduledJobs
+
+Scheduled jobs
+
 # info.loading
 
 Loading jobs...
@@ -45,6 +49,10 @@ Loading jobs...
 # info.noAsyncJobs
 
 No jobs in flight, and none finished in the last %s.
+
+# info.noScheduledJobs
+
+Nothing is scheduled in this org.
 
 # error.badSince
 

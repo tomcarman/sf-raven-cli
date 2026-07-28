@@ -1,16 +1,24 @@
 import { Messages, type Connection } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import chalk from 'chalk';
+import cronstrue from 'cronstrue';
 import {
   buildAsyncJobsQuery,
+  compareByNextRun,
   formatErrors,
+  formatFireTime,
   formatProgress,
+  formatScheduledName,
   formatStatus,
   formatSubmitted,
   parseSince,
+  scheduledJobsQuery,
   toAsyncJob,
+  toScheduledJob,
   type AsyncApexJobRecord,
   type AsyncJob,
+  type CronTriggerRecord,
+  type ScheduledJob,
 } from '../../../shared/inspectJobs.js';
 import { renderTable, type TableColumn } from '../../../shared/table.js';
 
@@ -21,6 +29,7 @@ const defaultSince = '24h';
 
 export type InspectJobsResult = {
   asyncJobs: AsyncJob[];
+  scheduledJobs: ScheduledJob[];
 };
 
 export default class InspectJobs extends SfCommand<InspectJobsResult> {
@@ -55,7 +64,8 @@ export default class InspectJobs extends SfCommand<InspectJobsResult> {
     }
 
     const now = new Date();
-    const asyncJobs = await this.queryAsyncJobs(flags['target-org'].getConnection(), sinceMs, flags.limit, now);
+    const connection = flags['target-org'].getConnection();
+    const { asyncJobs, scheduledJobs } = await this.queryJobs(connection, sinceMs, flags.limit, now);
 
     ux.log(`\n${chalk.bold(messages.getMessage('label.asyncJobs'))} ${chalk.dim(`(${asyncJobs.length})`)}\n`);
 
@@ -67,22 +77,37 @@ export default class InspectJobs extends SfCommand<InspectJobsResult> {
       }
     }
 
-    return { asyncJobs };
+    ux.log(`\n${chalk.bold(messages.getMessage('label.scheduledJobs'))} ${chalk.dim(`(${scheduledJobs.length})`)}\n`);
+
+    if (scheduledJobs.length === 0) {
+      ux.log(messages.getMessage('info.noScheduledJobs'));
+    } else {
+      for (const line of renderTable(scheduledJobs, scheduledJobColumns)) {
+        ux.log(line);
+      }
+    }
+
+    return { asyncJobs, scheduledJobs };
   }
 
-  private async queryAsyncJobs(
+  private async queryJobs(
     connection: Connection,
     sinceMs: number,
     limit: number,
     now: Date
-  ): Promise<AsyncJob[]> {
+  ): Promise<InspectJobsResult> {
     this.spinner.start(messages.getMessage('info.loading'));
 
     try {
-      const query = buildAsyncJobsQuery(new Date(now.getTime() - sinceMs), limit);
-      const result = await connection.query<AsyncApexJobRecord>(query);
+      const [async, scheduled] = await Promise.all([
+        connection.query<AsyncApexJobRecord>(buildAsyncJobsQuery(new Date(now.getTime() - sinceMs), limit)),
+        connection.query<CronTriggerRecord>(scheduledJobsQuery),
+      ]);
 
-      return result.records.map(toAsyncJob);
+      return {
+        asyncJobs: async.records.map(toAsyncJob),
+        scheduledJobs: scheduled.records.map((record) => toScheduledJob(record, describeSchedule)).sort(compareByNextRun),
+      };
     } finally {
       this.spinner.stop();
     }
@@ -100,5 +125,27 @@ const asyncJobColumns = (now: Date): Array<TableColumn<AsyncJob>> => [
   { header: 'Progress', get: formatProgress },
   { header: 'Errors', get: (job) => formatErrors(job.errors) },
   { header: 'Submitted', get: (job) => formatSubmitted(job.createdDate, job.createdBy, now) },
+  { header: 'Job Id', get: (job) => job.id },
+];
+
+/** Salesforce uses Quartz cron, which carries a leading seconds field. */
+const describeSchedule = (cronExpression: string | null): string => {
+  if (cronExpression == null || cronExpression.trim().length === 0) {
+    return '';
+  }
+
+  try {
+    return cronstrue.toString(cronExpression, { verbose: false, use24HourTimeFormat: true });
+  } catch {
+    return cronExpression;
+  }
+};
+
+const scheduledJobColumns: Array<TableColumn<ScheduledJob>> = [
+  { header: 'Type', get: (job) => job.type },
+  { header: 'Name', get: formatScheduledName },
+  { header: 'Schedule', get: (job) => job.schedule },
+  { header: 'Next Run', get: (job) => formatFireTime(job.nextRun) },
+  { header: 'Last Run', get: (job) => formatFireTime(job.lastRun) },
   { header: 'Job Id', get: (job) => job.id },
 ];

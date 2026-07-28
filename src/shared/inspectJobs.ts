@@ -147,5 +147,100 @@ export const formatStatus = (status: string): string => {
 
 export const formatErrors = (errors: number): string => (errors > 0 ? chalk.red(String(errors)) : '');
 
+export type CronTriggerRecord = {
+  Id: string;
+  CronExpression: string | null;
+  State: string;
+  NextFireTime: string | null;
+  PreviousFireTime: string | null;
+  StartTime: string | null;
+  EndTime: string | null;
+  TimesTriggered: number | null;
+  CronJobDetail: { Name: string; JobType: string } | null;
+};
+
+export type ScheduledJob = {
+  id: string;
+  type: string;
+  cronJobType: string;
+  name: string;
+  schedule: string;
+  cronExpression: string | null;
+  state: string;
+  nextRun: string | null;
+  lastRun: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  timesTriggered: number | null;
+};
+
+/**
+ * CronJobDetail.JobType is a picklist of opaque codes. Labels taken from the
+ * object's own describe; anything unlisted passes through as the raw code.
+ */
+const cronJobTypeLabels: Readonly<Record<string, string>> = {
+  '1': 'Data Export',
+  '3': 'Dashboard Refresh',
+  '4': 'Reporting Snapshot',
+  '6': 'Scheduled Flow',
+  '7': 'Scheduled Apex',
+  '8': 'Report Run',
+  '9': 'Batch Job',
+  A: 'Reporting Notification',
+};
+
+export const decodeCronJobType = (jobType: string | null | undefined): string =>
+  jobType == null ? '' : cronJobTypeLabels[jobType] ?? jobType;
+
+export const scheduledJobsQuery = [
+  'SELECT Id, CronExpression, State, NextFireTime, PreviousFireTime, StartTime, EndTime, TimesTriggered,',
+  'CronJobDetail.Name, CronJobDetail.JobType',
+  'FROM CronTrigger',
+].join(' ');
+
+export const toScheduledJob = (record: CronTriggerRecord, describeSchedule: ScheduleDescriber): ScheduledJob => ({
+  id: record.Id,
+  type: decodeCronJobType(record.CronJobDetail?.JobType),
+  cronJobType: record.CronJobDetail?.JobType ?? '',
+  name: record.CronJobDetail?.Name ?? '',
+  schedule: describeSchedule(record.CronExpression),
+  cronExpression: record.CronExpression,
+  state: record.State,
+  nextRun: record.NextFireTime,
+  lastRun: record.PreviousFireTime,
+  startTime: record.StartTime,
+  endTime: record.EndTime,
+  timesTriggered: record.TimesTriggered,
+});
+
+export type ScheduleDescriber = (cronExpression: string | null) => string;
+
+/** Soonest first; jobs that will never fire again sink to the bottom. */
+export const compareByNextRun = (left: ScheduledJob, right: ScheduledJob): number => {
+  if (left.nextRun == null && right.nextRun == null) {
+    return left.name.localeCompare(right.name);
+  }
+
+  if (left.nextRun == null) {
+    return 1;
+  }
+
+  if (right.nextRun == null) {
+    return -1;
+  }
+
+  return left.nextRun.localeCompare(right.nextRun) || left.name.localeCompare(right.name);
+};
+
+export const formatFireTime = (isoDate: string | null): string =>
+  isoDate == null ? '' : dayjs(isoDate).format('YYYY-MM-DD HH:mm');
+
+/**
+ * State is WAITING for virtually every row, so it earns a column only when it
+ * is not - and then as a marker on the row it affects.
+ */
+export const formatScheduledName = (job: ScheduledJob): string =>
+  job.state === 'WAITING' ? job.name : `${job.name} ${chalk.yellow(`[${job.state}]`)}`;
+
 const toSoqlList = (values: readonly string[]): string =>
   values.map((value) => `'${escapeSoqlString(value)}'`).join(', ');

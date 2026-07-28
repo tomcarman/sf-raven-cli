@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
+import cronstrue from 'cronstrue';
 import {
   buildAsyncJobsQuery,
+  compareByNextRun,
+  decodeCronJobType,
   decodeJobType,
+  formatFireTime,
+  formatScheduledName,
+  toScheduledJob,
+  type CronTriggerRecord,
+  type ScheduledJob,
   formatErrors,
   formatProgress,
   formatSubmitted,
@@ -164,6 +172,131 @@ describe('inspect jobs', () => {
 
     it('shows the count when there are some', () => {
       assert.equal(stripAnsi(formatErrors(4)), '4');
+    });
+  });
+
+  describe('scheduled jobs', () => {
+    const describeSchedule = (expression: string | null): string =>
+      expression == null ? '' : cronstrue.toString(expression, { use24HourTimeFormat: true });
+
+    const cronRecord = (overrides: Partial<CronTriggerRecord> = {}): CronTriggerRecord => ({
+      Id: '08eaj000000abcAAA',
+      CronExpression: '0 0 3 * * ?',
+      State: 'WAITING',
+      NextFireTime: '2026-07-29T03:00:00.000+0000',
+      PreviousFireTime: '2026-07-28T03:00:00.000+0000',
+      StartTime: '2026-01-01T00:00:00.000+0000',
+      EndTime: null,
+      TimesTriggered: 12,
+      CronJobDetail: { Name: 'Nightly Sync', JobType: '7' },
+      ...overrides,
+    });
+
+    const scheduled = (overrides: Partial<ScheduledJob> = {}): ScheduledJob => ({
+      ...toScheduledJob(cronRecord(), describeSchedule),
+      ...overrides,
+    });
+
+    describe('decodeCronJobType', () => {
+      it('spells out the documented codes', () => {
+        assert.equal(decodeCronJobType('7'), 'Scheduled Apex');
+        assert.equal(decodeCronJobType('9'), 'Batch Job');
+        assert.equal(decodeCronJobType('8'), 'Report Run');
+        assert.equal(decodeCronJobType('A'), 'Reporting Notification');
+      });
+
+      it('passes an unknown code through and treats a missing one as blank', () => {
+        assert.equal(decodeCronJobType('Z'), 'Z');
+        assert.equal(decodeCronJobType(null), '');
+      });
+    });
+
+    describe('toScheduledJob', () => {
+      it('maps the trigger and its detail onto the row', () => {
+        const job = toScheduledJob(cronRecord(), describeSchedule);
+
+        assert.equal(job.id, '08eaj000000abcAAA');
+        assert.equal(job.name, 'Nightly Sync');
+        assert.equal(job.type, 'Scheduled Apex');
+        assert.equal(job.schedule.toLowerCase().includes('03:00'), true, job.schedule);
+      });
+
+      it('keeps the raw cron expression, state, counters, and window for JSON', () => {
+        const job = toScheduledJob(cronRecord(), describeSchedule);
+
+        assert.equal(job.cronExpression, '0 0 3 * * ?');
+        assert.equal(job.state, 'WAITING');
+        assert.equal(job.timesTriggered, 12);
+        assert.equal(job.startTime, '2026-01-01T00:00:00.000+0000');
+        assert.equal(job.endTime, null);
+      });
+
+      it('survives a missing CronJobDetail', () => {
+        const job = toScheduledJob(cronRecord({ CronJobDetail: null }), describeSchedule);
+
+        assert.equal(job.name, '');
+        assert.equal(job.type, '');
+      });
+    });
+
+    describe('compareByNextRun', () => {
+      it('puts the soonest next run first', () => {
+        const order = [
+          scheduled({ name: 'later', nextRun: '2026-07-30T03:00:00.000+0000' }),
+          scheduled({ name: 'sooner', nextRun: '2026-07-29T03:00:00.000+0000' }),
+        ]
+          .sort(compareByNextRun)
+          .map((job) => job.name);
+
+        assert.deepEqual(order, ['sooner', 'later']);
+      });
+
+      it('sinks jobs with no next fire time to the bottom', () => {
+        const order = [
+          scheduled({ name: 'deleted', nextRun: null }),
+          scheduled({ name: 'waiting', nextRun: '2026-07-29T03:00:00.000+0000' }),
+        ]
+          .sort(compareByNextRun)
+          .map((job) => job.name);
+
+        assert.deepEqual(order, ['waiting', 'deleted']);
+      });
+
+      it('falls back to name order for ties and for jobs that never fire again', () => {
+        const sameTime = '2026-07-29T03:00:00.000+0000';
+        const order = [
+          scheduled({ name: 'b', nextRun: sameTime }),
+          scheduled({ name: 'a', nextRun: sameTime }),
+          scheduled({ name: 'z', nextRun: null }),
+          scheduled({ name: 'y', nextRun: null }),
+        ]
+          .sort(compareByNextRun)
+          .map((job) => job.name);
+
+        assert.deepEqual(order, ['a', 'b', 'y', 'z']);
+      });
+    });
+
+    describe('formatFireTime', () => {
+      it('renders a timestamp and leaves a missing one blank', () => {
+        assert.equal(formatFireTime(null), '');
+        assert.equal(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(formatFireTime('2026-07-29T03:00:00.000Z')), true);
+      });
+    });
+
+    describe('formatScheduledName', () => {
+      it('leaves a waiting job unmarked', () => {
+        assert.equal(formatScheduledName(scheduled({ name: 'Nightly', state: 'WAITING' })), 'Nightly');
+      });
+
+      it('marks any other state on the row', () => {
+        assert.equal(stripAnsi(formatScheduledName(scheduled({ name: 'Nightly', state: 'PAUSED' }))), 'Nightly [PAUSED]');
+      });
+    });
+
+    it('renders Salesforce Quartz expressions, including the seconds field', () => {
+      assert.equal(describeSchedule('0 0 3 * * ?').includes('03:00'), true);
+      assert.equal(describeSchedule('0 30 2 ? * MON-FRI').toLowerCase().includes('monday'), true);
     });
   });
 });
