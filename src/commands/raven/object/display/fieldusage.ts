@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { Messages, type Connection } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import chalk from 'chalk';
+import { mapWithConcurrency } from '../../../../shared/concurrency.js';
 import {
   buildDeepCountQuery,
   buildFieldUsage,
@@ -10,7 +11,6 @@ import {
   formatPercent,
   formatUsageMethod,
   isDeepCountable,
-  mapWithConcurrency,
   selectFields,
   sortFieldUsage,
   toPercent,

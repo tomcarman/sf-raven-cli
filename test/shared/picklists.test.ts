@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
 import {
+  applyAvailability,
+  formatAvailabilityCell,
   formatDefaultMarker,
   isPicklistField,
+  masterRecordTypeId,
+  masterRecordTypeName,
   selectPicklistFields,
   toPicklistField,
   type DescribeFieldWithPicklist,
+  type RecordTypeAvailability,
+  type RecordTypeColumn,
 } from '../../src/shared/picklists.js';
 
 const picklist = (
@@ -110,6 +116,86 @@ describe('picklists', () => {
     it('marks the default value only', () => {
       assert.equal(formatDefaultMarker(true), '*');
       assert.equal(formatDefaultMarker(false), '');
+    });
+  });
+
+  describe('record-type availability', () => {
+    const stage = toPicklistField(
+      picklist('StageName', [
+        ['Prospecting', 'Prospecting', true, false],
+        ['Closed Won', 'Closed Won', true, false],
+      ])
+    );
+
+    const column = (developerName: string, accessible = true): RecordTypeColumn => ({
+      id: developerName === masterRecordTypeName ? masterRecordTypeId : `012${developerName}`,
+      developerName,
+      name: developerName,
+      accessible,
+    });
+
+    const columns = [column(masterRecordTypeName), column('Open'), column('Closed')];
+
+    const responses = new Map<string, RecordTypeAvailability>([
+      [masterRecordTypeName, new Map([['StageName', { values: new Set(['Prospecting', 'Closed Won']) }]])],
+      ['Open', new Map([['StageName', { values: new Set(['Prospecting']), defaultValue: 'Prospecting' }]])],
+      ['Closed', new Map([['StageName', { values: new Set(['Closed Won']) }]])],
+    ]);
+
+    describe('applyAvailability', () => {
+      it('records which record types offer each value', () => {
+        const [field] = applyAvailability([stage], columns, responses);
+
+        assert.deepEqual(field.values[0].availability, { Master: true, Open: true, Closed: false });
+        assert.deepEqual(field.values[1].availability, { Master: true, Open: false, Closed: true });
+      });
+
+      it('records the per-record-type default separately from the global one', () => {
+        const [field] = applyAvailability([stage], columns, responses);
+
+        assert.deepEqual(field.values[0].defaultFor, { Master: false, Open: true, Closed: false });
+        assert.equal(field.values[0].isDefault, false, 'the global default is untouched');
+      });
+
+      it('leaves an unreadable record type out of both maps', () => {
+        const partial = new Map(responses);
+        partial.set('Closed', undefined);
+
+        const [field] = applyAvailability([stage], columns, partial);
+
+        assert.equal(Object.hasOwn(field.values[0].availability ?? {}, 'Closed'), false);
+        assert.deepEqual(Object.keys(field.values[0].availability ?? {}), ['Master', 'Open']);
+      });
+
+      it('marks a value unavailable when the record type returned no data for its field', () => {
+        const [field] = applyAvailability([stage], [column('Open')], new Map([['Open', new Map()]]));
+
+        assert.deepEqual(field.values[0].availability, { Open: false });
+      });
+    });
+
+    describe('formatAvailabilityCell', () => {
+      const [field] = applyAvailability([stage], columns, responses);
+
+      it('ticks an available value', () => {
+        assert.equal(formatAvailabilityCell(field.values[0], column(masterRecordTypeName)), '✓');
+      });
+
+      it('stars the record type that defaults to the value', () => {
+        assert.equal(formatAvailabilityCell(field.values[0], column('Open')), '✓*');
+      });
+
+      it('leaves an unavailable value blank', () => {
+        assert.equal(formatAvailabilityCell(field.values[0], column('Closed')), '');
+      });
+
+      it('dashes a record type that could not be read', () => {
+        assert.equal(formatAvailabilityCell(field.values[0], column('Closed', false)), '-');
+      });
+
+      it('leaves the cell blank for a value with no availability data at all', () => {
+        assert.equal(formatAvailabilityCell(stage.values[0], column('Open')), '');
+      });
     });
   });
 });

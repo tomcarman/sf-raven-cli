@@ -6,6 +6,8 @@ Show picklist values for the fields on an sObject.
 
 Lists the active values of every picklist field on the object, with the label and API name of each value. The global default value is marked with an asterisk, and dependent picklists note the field that controls them.
 
+On objects that use record types, values are shown as a matrix: one column per record type, including Master, with a check mark where the value is available and a star where it is that record type's default. Record types you cannot access are shown as unavailable rather than failing the command. Objects without record types get the flat list.
+
 Multi-select picklists are included.
 
 # examples
@@ -65,6 +67,10 @@ multi-select
 # label.controlledBy
 
 Controlled by: %s
+
+# label.unavailable
+
+(unavailable)
 
 # error.unknownSObject
 
