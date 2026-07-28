@@ -213,6 +213,9 @@
                   "fieldusage": {
                     "description": "Show how many records populate each field on a given sObject."
                   },
+                  "picklists": {
+                    "description": "Show picklist values for the fields on a given sObject."
+                  },
                   "recordtypes": {
                     "description": "Show Record Type information for a given sObject."
                   },
