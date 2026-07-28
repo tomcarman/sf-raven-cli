@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { Connection } from '@salesforce/core';
 import { Duration } from '@salesforce/kit';
 import { ComponentSet } from '@salesforce/source-deploy-retrieve';
+import { escapeSoqlString } from './query.js';
 
 type ToolingQueryResult<T> = { records: T[] };
 
@@ -239,8 +240,6 @@ const queryActiveFlowNames = async (
 const flowApiName = (name: string): string => name.replace(/-\d+$/, '');
 
 const toSoqlStringList = (values: string[]): string => values.map((value) => `'${escapeSoqlString(value)}'`).join(', ');
-
-const escapeSoqlString = (value: string): string => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
 const unique = (values: string[]): string[] => [...new Set(values)];
 

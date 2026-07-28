@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { setupPathPrefix } from './openAliases.js';
+import { aliasSearchTerms, setupPathPrefix, type AliasDefinition } from './openAliases.js';
+import { isValidSalesforceId } from './query.js';
 
 /**
  * What `raven open` decided the user meant, and where to send the browser.
@@ -13,11 +14,9 @@ export type OpenTarget = {
   path: string;
 };
 
-export type OpenTargetKind = 'record' | 'sobject' | 'alias';
+export type OpenTargetKind = 'record' | 'sobject' | 'alias' | 'apexClass' | 'flow';
 
-const recordIdPattern = /^[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?$/;
-
-export const isRecordId = (thing: string): boolean => recordIdPattern.test(thing);
+export const isRecordId = isValidSalesforceId;
 
 /**
  * Records are opened by bare Id: Salesforce redirects `/<id>` to whichever view
@@ -77,6 +76,61 @@ export const matchSObjects = (thing: string, sobjects: readonly SObjectSummary[]
   }
 
   return [];
+};
+
+/**
+ * Apex classes have no Lightning record page, so Setup's class list is opened
+ * with the classic detail URL passed through its `address` parameter.
+ */
+export const buildApexClassTarget = (name: string, id: string): OpenTarget => ({
+  kind: 'apexClass',
+  name,
+  path: `${setupPathPrefix}ApexClasses/page?address=%2F${id}`,
+});
+
+/** Flows open in Flow Builder at the version you would continue editing. */
+export const buildFlowTarget = (developerName: string, latestVersionId: string): OpenTarget => ({
+  kind: 'flow',
+  name: developerName,
+  path: `/builder_platform_interaction/flowBuilder.app?flowId=${latestVersionId}`,
+});
+
+export type OpenCandidate = {
+  /** How the match is described in the picker. */
+  label: string;
+  target: OpenTarget;
+};
+
+/**
+ * Last resort once every exact tier has missed: a case-insensitive substring
+ * sweep over alias names and sObject names/labels. Deliberately no edit-distance
+ * matching, so a typo fails loudly rather than opening the wrong page.
+ */
+export const fuzzyCandidates = (
+  thing: string,
+  aliases: Readonly<Record<string, AliasDefinition>>,
+  sobjects: readonly SObjectSummary[]
+): OpenCandidate[] => {
+  const needle = thing.toLowerCase();
+  const matchesNeedle = (term: string): boolean => term.toLowerCase().includes(needle);
+
+  const aliasHits = [...aliasSearchTerms(aliases)]
+    .filter(([, terms]) => terms.some(matchesNeedle))
+    .map(([alias]) => ({
+      label: `${alias} (Setup page)`,
+      target: buildAliasTarget(alias, aliases[alias].path),
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+
+  const sobjectHits = sobjects
+    .filter((sobject) => matchesNeedle(sobject.name) || matchesNeedle(sobject.label))
+    .map((sobject) => ({
+      label: `${sobject.label} (${sobject.name})`,
+      target: buildSObjectTarget(sobject.name),
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+
+  return [...aliasHits, ...sobjectHits];
 };
 
 type OpenerCommand = { command: string; args: string[] };

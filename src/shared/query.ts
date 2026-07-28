@@ -20,5 +20,8 @@ export const escapeCsvValue = (value: unknown): string => {
 
 export const getEncodedQueryLength = (query: string): number => Buffer.byteLength(encodeURIComponent(query), 'utf8');
 
+/** Escapes a value for interpolation inside a single-quoted SOQL literal. */
+export const escapeSoqlString = (value: string): string => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
 export const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   value != null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date);

@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
 import {
   buildAliasTarget,
+  buildApexClassTarget,
+  buildFlowTarget,
   buildRecordTarget,
   buildSObjectTarget,
+  fuzzyCandidates,
   isRecordId,
   matchSObjects,
   openerCommand,
   sobjectBaseName,
 } from '../../src/shared/open.js';
+import { builtInAliases } from '../../src/shared/openAliases.js';
 
 describe('open targets', () => {
   describe('isRecordId', () => {
@@ -111,6 +115,71 @@ describe('open targets', () => {
 
     it('returns nothing when no tier matches', () => {
       assert.deepEqual(matchSObjects('perm-sets', sobjects), []);
+    });
+  });
+
+  describe('buildApexClassTarget', () => {
+    it('routes through the Setup class list with an encoded classic address', () => {
+      assert.deepEqual(buildApexClassTarget('AccountHandler', '01p5g00000XyZaBAAV'), {
+        kind: 'apexClass',
+        name: 'AccountHandler',
+        path: '/lightning/setup/ApexClasses/page?address=%2F01p5g00000XyZaBAAV',
+      });
+    });
+  });
+
+  describe('buildFlowTarget', () => {
+    it('opens the latest version in Flow Builder', () => {
+      assert.deepEqual(buildFlowTarget('Send_Welcome_Email', '3015g000000XyZaAAK'), {
+        kind: 'flow',
+        name: 'Send_Welcome_Email',
+        path: '/builder_platform_interaction/flowBuilder.app?flowId=3015g000000XyZaAAK',
+      });
+    });
+  });
+
+  describe('fuzzyCandidates', () => {
+    const sobjects = [
+      { name: 'Account', label: 'Account' },
+      { name: 'AccountContactRole', label: 'Account Contact Role' },
+      { name: 'Invoice__c', label: 'Invoice' },
+    ];
+
+    it('matches aliases by substring of the key or a synonym', () => {
+      const labels = fuzzyCandidates('perm', builtInAliases, []).map((candidate) => candidate.label);
+
+      assert.deepEqual(labels, ['perm-set-groups (Setup page)', 'perm-sets (Setup page)']);
+    });
+
+    it('matches sObjects by substring of the API name or label', () => {
+      const names = fuzzyCandidates('accou', builtInAliases, sobjects).map((candidate) => candidate.target.name);
+
+      assert.deepEqual(names, ['Account', 'AccountContactRole']);
+    });
+
+    it('is case-insensitive', () => {
+      assert.equal(fuzzyCandidates('INVOI', builtInAliases, sobjects).length, 1);
+    });
+
+    it('lists alias hits before sObject hits', () => {
+      const kinds = fuzzyCandidates('class', builtInAliases, [
+        { name: 'ApexClassMirror__c', label: 'Apex Class Mirror' },
+      ]).map((candidate) => candidate.target.kind);
+
+      assert.deepEqual(kinds, ['alias', 'sobject']);
+    });
+
+    it('returns nothing when the name matches no category', () => {
+      assert.deepEqual(fuzzyCandidates('zzzzz', builtInAliases, sobjects), []);
+    });
+
+    it('reports each alias once even when the key and a synonym both match', () => {
+      const candidates = fuzzyCandidates('perm-sets', builtInAliases, []);
+
+      assert.deepEqual(
+        candidates.map((candidate) => candidate.target.name),
+        ['perm-sets']
+      );
     });
   });
 

@@ -4,17 +4,22 @@ import { Messages, type Connection } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import {
   buildAliasTarget,
+  buildApexClassTarget,
+  buildFlowTarget,
   buildRecordTarget,
   buildSObjectTarget,
+  fuzzyCandidates,
   isRecordId,
   launchBrowser,
   matchSObjects,
+  type OpenCandidate,
   type OpenTarget,
   type SObjectSummary,
 } from '../../shared/open.js';
 import { findAlias, mergeAliases, type AliasDefinition } from '../../shared/openAliases.js';
 import { readRavenPluginConfig } from '../../shared/pluginConfig.js';
 import { isPromptForceCloseError } from '../../shared/pull.js';
+import { escapeSoqlString } from '../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.open');
@@ -25,12 +30,18 @@ const selectPrompt = select as unknown as SelectPrompt;
 
 export type RavenOpenResult = {
   thing: string;
-  kind: OpenTarget['kind'];
-  name: string;
-  path: string;
-  url: string;
   opened: boolean;
+  /** Absent when a picker was dismissed without choosing anything. */
+  kind?: OpenTarget['kind'];
+  name?: string;
+  path?: string;
+  url?: string;
 };
+
+type Resolution =
+  | { status: 'resolved'; target: OpenTarget }
+  | { status: 'cancelled' }
+  | { status: 'unresolved' };
 
 export default class RavenOpen extends SfCommand<RavenOpenResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -62,12 +73,19 @@ export default class RavenOpen extends SfCommand<RavenOpenResult> {
     const org = flags['target-org'];
 
     const aliases = mergeAliases((await readRavenPluginConfig(process.cwd())).open?.aliases);
-    const target = await resolveTarget(args.thing, org.getConnection(), aliases, ux);
+    const resolution = await resolveTarget(args.thing, org.getConnection(), aliases, ux);
 
-    if (target == null) {
+    if (resolution.status === 'cancelled') {
+      ux.log(messages.getMessage('info.noSelection'));
+
+      return { thing: args.thing, opened: false };
+    }
+
+    if (resolution.status === 'unresolved') {
       throw messages.createError('error.notResolvable', [args.thing, messages.getMessage('label.categories')]);
     }
 
+    const { target } = resolution;
     const url = await org.getFrontDoorUrl(target.path);
     const base = { thing: args.thing, kind: target.kind, name: target.name, path: target.path, url };
 
@@ -84,51 +102,73 @@ export default class RavenOpen extends SfCommand<RavenOpenResult> {
   }
 }
 
-/** Record Id, then sobject, then Setup alias - first tier to match wins. */
 const resolveTarget = async (
   thing: string,
   connection: Connection,
   aliases: Readonly<Record<string, AliasDefinition>>,
   ux: Ux
-): Promise<OpenTarget | undefined> => {
+): Promise<Resolution> => {
   if (isRecordId(thing)) {
-    return buildRecordTarget(thing);
+    return { status: 'resolved', target: buildRecordTarget(thing) };
   }
 
-  const sobject = await resolveSObject(thing, connection, ux);
+  const candidates = await findCandidates(thing, connection, aliases, ux);
 
-  if (sobject != null) {
-    return sobject;
+  if (candidates.length === 0) {
+    return { status: 'unresolved' };
   }
 
-  const alias = findAlias(thing, aliases);
+  if (candidates.length === 1) {
+    return { status: 'resolved', target: candidates[0].target };
+  }
 
-  return alias == null ? undefined : buildAliasTarget(alias.alias, alias.path);
+  const chosen = await pickCandidate(candidates);
+
+  return chosen == null ? { status: 'cancelled' } : { status: 'resolved', target: chosen };
 };
 
-const resolveSObject = async (thing: string, connection: Connection, ux: Ux): Promise<OpenTarget | undefined> => {
+/**
+ * Runs the exact tiers in precedence order - sObject, Setup alias, then metadata
+ * by name - and only sweeps for near misses once all of them have come up empty.
+ */
+const findCandidates = async (
+  thing: string,
+  connection: Connection,
+  aliases: Readonly<Record<string, AliasDefinition>>,
+  ux: Ux
+): Promise<OpenCandidate[]> => {
   ux.spinner.start(messages.getMessage('info.resolving'));
 
-  let matches: SObjectSummary[];
-
   try {
-    matches = matchSObjects(thing, await listSObjects(connection));
+    const sobjects = await listSObjects(connection);
+    const sobjectMatches = matchSObjects(thing, sobjects);
+
+    if (sobjectMatches.length > 0) {
+      return sobjectMatches.map(toSObjectCandidate);
+    }
+
+    const alias = findAlias(thing, aliases);
+
+    if (alias != null) {
+      return [{ label: alias.alias, target: buildAliasTarget(alias.alias, alias.path) }];
+    }
+
+    const metadata = await findMetadata(connection, thing);
+
+    if (metadata.length > 0) {
+      return metadata;
+    }
+
+    return fuzzyCandidates(thing, aliases, sobjects);
   } finally {
     ux.spinner.stop();
   }
-
-  if (matches.length === 0) {
-    return undefined;
-  }
-
-  if (matches.length === 1) {
-    return buildSObjectTarget(matches[0].name);
-  }
-
-  const chosen = await pickSObject(matches);
-
-  return chosen == null ? undefined : buildSObjectTarget(chosen);
 };
+
+const toSObjectCandidate = (sobject: SObjectSummary): OpenCandidate => ({
+  label: `${sobject.label} (${sobject.name})`,
+  target: buildSObjectTarget(sobject.name),
+});
 
 const listSObjects = async (connection: Connection): Promise<SObjectSummary[]> => {
   const { sobjects } = await connection.describeGlobal();
@@ -136,11 +176,51 @@ const listSObjects = async (connection: Connection): Promise<SObjectSummary[]> =
   return sobjects.map((sobject) => ({ name: sobject.name, label: sobject.label }));
 };
 
-const pickSObject = async (matches: readonly SObjectSummary[]): Promise<string | undefined> => {
+type ApexClassRecord = { Id: string; Name: string };
+type FlowDefinitionRecord = { DeveloperName: string; LatestVersionId: string | null };
+
+/** Escapes SOQL's single-character and multi-character LIKE wildcards. */
+const escapeSoqlLike = (value: string): string => escapeSoqlString(value).replace(/([%_])/g, '\\$1');
+
+const findMetadata = async (connection: Connection, thing: string): Promise<OpenCandidate[]> => {
+  const exact = escapeSoqlString(thing);
+  const exactMatches = await queryMetadata(connection, `= '${exact}'`);
+
+  if (exactMatches.length > 0) {
+    return exactMatches;
+  }
+
+  return queryMetadata(connection, `LIKE '%${escapeSoqlLike(thing)}%'`);
+};
+
+const queryMetadata = async (connection: Connection, predicate: string): Promise<OpenCandidate[]> => {
+  const [classes, flows] = await Promise.all([
+    connection.tooling.query<ApexClassRecord>(`SELECT Id, Name FROM ApexClass WHERE Name ${predicate}`),
+    connection.tooling.query<FlowDefinitionRecord>(
+      `SELECT DeveloperName, LatestVersionId FROM FlowDefinition WHERE DeveloperName ${predicate}`
+    ),
+  ]);
+
+  return [
+    ...classes.records.map((record) => ({
+      label: `${record.Name} (Apex class)`,
+      target: buildApexClassTarget(record.Name, record.Id),
+    })),
+    // A definition with no version has nothing to open in Flow Builder.
+    ...flows.records
+      .filter((record): record is FlowDefinitionRecord & { LatestVersionId: string } => record.LatestVersionId != null)
+      .map((record) => ({
+        label: `${record.DeveloperName} (Flow)`,
+        target: buildFlowTarget(record.DeveloperName, record.LatestVersionId),
+      })),
+  ];
+};
+
+const pickCandidate = async (candidates: readonly OpenCandidate[]): Promise<OpenTarget | undefined> => {
   try {
-    return await selectPrompt<string>({
-      message: messages.getMessage('prompt.selectSObject'),
-      choices: matches.map((match) => ({ name: `${match.label} (${match.name})`, value: match.name })),
+    return await selectPrompt<OpenTarget>({
+      message: messages.getMessage('prompt.selectCandidate'),
+      choices: candidates.map((candidate) => ({ name: candidate.label, value: candidate.target })),
       pageSize: 10,
     });
   } catch (error) {
