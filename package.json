@@ -198,6 +198,9 @@
               },
               "record": {
                 "description": "Fetch any record by id with full-field output."
+              },
+              "recent": {
+                "description": "Show the most recently created records for an sObject."
               }
             }
           },

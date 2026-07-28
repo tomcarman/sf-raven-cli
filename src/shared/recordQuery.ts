@@ -30,6 +30,12 @@ export type RecordQueryResult = {
   records: Array<Record<string, unknown>>;
 };
 
+/** The slice of a query result the output formatters actually need. */
+export type RecordOutput = {
+  fields: string[];
+  records: Array<Record<string, unknown>>;
+};
+
 export type RecordTableOptions = {
   truncate?: number;
   omitNull?: boolean;
@@ -80,10 +86,10 @@ export const formatRecordTable = (result: RecordQueryResult, options: RecordTabl
   const fields = options.omitNull
     ? result.fields.filter((field) => result.records.some((record) => resolveFieldValue(record, field) != null))
     : result.fields;
-  const header = ['Field', ...result.records.map((record) => formatCell(record.Id, 0))];
+  const header = ['Field', ...result.records.map((record) => formatRecordCell(record.Id, 0))];
   const rows = fields.map((field) => [
     field,
-    ...result.records.map((record) => formatCell(resolveFieldValue(record, field), truncate)),
+    ...result.records.map((record) => formatRecordCell(resolveFieldValue(record, field), truncate)),
   ]);
 
   const widths = header.map((cell, columnIndex) => Math.max(cell.length, ...rows.map((row) => row[columnIndex].length)));
@@ -94,9 +100,9 @@ export const formatRecordTable = (result: RecordQueryResult, options: RecordTabl
     .join('\n');
 };
 
-export const formatRecordJson = (result: RecordQueryResult): string => JSON.stringify(result.records, null, 2);
+export const formatRecordJson = (result: RecordOutput): string => JSON.stringify(result.records, null, 2);
 
-export const formatRecordCsv = (result: RecordQueryResult): string => {
+export const formatRecordCsv = (result: RecordOutput): string => {
   const header = result.fields.map(escapeCsvValue).join(',');
   const rows = result.records.map((record) =>
     result.fields.map((field) => escapeCsvValue(resolveFieldValue(record, field))).join(',')
@@ -105,7 +111,7 @@ export const formatRecordCsv = (result: RecordQueryResult): string => {
   return [header, ...rows].join('\n');
 };
 
-export const formatRecordToon = (result: RecordQueryResult): string => encode(result.records);
+export const formatRecordToon = (result: RecordOutput): string => encode(result.records);
 
 const parseRecordIds = (recordIds: string): string[] => {
   const ids = recordIds
@@ -277,19 +283,20 @@ const dedupeFields = (fields: string[]): string[] => {
 
 const toShortId = (id: string): string => id.slice(0, shortIdLength);
 
-const stripAttributes = (record: Record<string, unknown>): Record<string, unknown> =>
+/** Drops jsforce's `attributes` envelopes so output shows only real fields. */
+export const stripAttributes = (record: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(
     Object.entries(record)
       .filter(([key]) => key !== 'attributes')
       .map(([key, value]) => [key, isPlainObject(value) ? stripAttributes(value) : value])
   );
 
-const resolveFieldValue = (record: Record<string, unknown>, field: string): unknown =>
+export const resolveFieldValue = (record: Record<string, unknown>, field: string): unknown =>
   field
     .split('.')
     .reduce<unknown>((value, segment) => (isPlainObject(value) ? value[segment] : undefined), record);
 
-const formatCell = (value: unknown, truncate: number): string => {
+export const formatRecordCell = (value: unknown, truncate: number): string => {
   if (value == null) {
     return '';
   }
