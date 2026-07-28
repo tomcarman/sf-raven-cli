@@ -35,41 +35,45 @@ const shortIdLength = 15;
 
 /**
  * Salesforce names history objects inconsistently (AccountHistory,
- * OpportunityFieldHistory, Invoice__History), so the child relationship is
- * discovered from describe rather than guessed. The names derived from this
- * object rank first so an unrelated *History child cannot win.
+ * OpportunityFieldHistory, Invoice__History), so the history child and its
+ * lookup back to the parent are discovered from describe rather than hardcoded.
+ *
+ * Only a child named after this object is accepted. Nearly every object carries
+ * unrelated `*History` children - ActivityHistory, ProcessInstanceHistory,
+ * RecordActionHistory - and objects that do not track field history carry
+ * nothing else, so taking "the only History child" picks an object with no
+ * Field/OldValue/NewValue columns and fails with a raw SOQL error. Reporting
+ * that tracking is off is the better answer.
+ *
+ * FieldHistory ranks above History because objects that have both - Opportunity
+ * among them - keep field-level changes in the FieldHistory object and use the
+ * plain History object for something else entirely.
  */
 export const findHistoryRelationship = (
   sobject: string,
   childRelationships: readonly ChildRelationship[]
 ): HistoryRelationship | undefined => {
-  const candidates = childRelationships.filter(
-    (relationship) => relationship.childSObject.toLowerCase().endsWith('history') && relationship.field.length > 0
+  const byLowerName = new Map(
+    childRelationships
+      .filter((relationship) => relationship.field.length > 0)
+      .map((relationship) => [relationship.childSObject.toLowerCase(), relationship])
   );
 
-  if (candidates.length === 0) {
-    return undefined;
-  }
-
-  const expected = expectedHistoryNames(sobject).map((name) => name.toLowerCase());
-
-  for (const name of expected) {
-    const match = candidates.find((candidate) => candidate.childSObject.toLowerCase() === name);
+  for (const name of expectedHistoryNames(sobject)) {
+    const match = byLowerName.get(name.toLowerCase());
 
     if (match != null) {
       return { object: match.childSObject, field: match.field };
     }
   }
 
-  // No name derived from this object matched. A single candidate is still
-  // unambiguous; several would be a guess, so decline rather than guess wrong.
-  return candidates.length === 1 ? { object: candidates[0].childSObject, field: candidates[0].field } : undefined;
+  return undefined;
 };
 
 const expectedHistoryNames = (sobject: string): string[] => {
   const base = sobject.replace(/__c$/i, '');
 
-  return [`${sobject}History`, `${sobject}FieldHistory`, `${base}__History`];
+  return [`${sobject}FieldHistory`, `${sobject}History`, `${base}__History`];
 };
 
 export const buildHistoryQuery = (relationship: HistoryRelationship, recordIds: readonly string[]): string => {

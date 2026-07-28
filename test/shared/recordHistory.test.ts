@@ -38,6 +38,43 @@ describe('record history', () => {
       });
     });
 
+    it('prefers FieldHistory over History when the object has both', () => {
+      assert.deepEqual(
+        findHistoryRelationship('Opportunity', [
+          child('ActivityHistory', 'WhatId'),
+          child('OpportunityHistory', 'OpportunityId'),
+          child('OpportunityFieldHistory', 'OpportunityId'),
+          child('ProcessInstanceHistory', 'TargetObjectId'),
+          child('RecordActionHistory', 'ParentRecordId'),
+        ]),
+        { object: 'OpportunityFieldHistory', field: 'OpportunityId' }
+      );
+    });
+
+    it('ignores the history children every object carries', () => {
+      assert.equal(
+        findHistoryRelationship('Bird__c', [
+          child('ActivityHistory', 'WhatId'),
+          child('ProcessInstanceHistory', 'TargetObjectId'),
+          child('RecordActionHistory', 'ParentRecordId'),
+        ]),
+        undefined
+      );
+    });
+
+    it('declines a lone History child that is not named after the object', () => {
+      // ActivityFieldHistory is Task's only History child but has no Field
+      // column, so guessing it would fail with a raw SOQL error.
+      assert.equal(
+        findHistoryRelationship('Task', [
+          child('ActivityHistory', 'WhatId'),
+          child('ActivityFieldHistory', 'TaskId'),
+          child('ProcessInstanceHistory', 'TargetObjectId'),
+        ]),
+        undefined
+      );
+    });
+
     it('finds the custom object __History variant', () => {
       assert.deepEqual(findHistoryRelationship('Invoice__c', [child('Invoice__History', 'ParentId')]), {
         object: 'Invoice__History',
@@ -50,13 +87,6 @@ describe('record history', () => {
       assert.equal(findHistoryRelationship('Account', []), undefined);
     });
 
-    it('accepts a single unrecognised history child rather than giving up', () => {
-      assert.deepEqual(findHistoryRelationship('Account', [child('LegacyAccountHistory', 'AccountId')]), {
-        object: 'LegacyAccountHistory',
-        field: 'AccountId',
-      });
-    });
-
     it('prefers the name derived from the object over another history child', () => {
       assert.deepEqual(
         findHistoryRelationship('User', [child('LoginHistory', 'UserId'), child('UserHistory', 'UserId')]),
@@ -64,11 +94,16 @@ describe('record history', () => {
       );
     });
 
-    it('declines to guess between several unrecognised history children', () => {
+    it('declines history children that are not named after the object', () => {
       assert.equal(
         findHistoryRelationship('User', [child('LoginHistory', 'UserId'), child('LoginIpHistory', 'UsersId')]),
         undefined
       );
+      assert.equal(findHistoryRelationship('Account', [child('LegacyAccountHistory', 'AccountId')]), undefined);
+    });
+
+    it('ignores a relationship with no lookup field', () => {
+      assert.equal(findHistoryRelationship('Account', [child('AccountHistory', '')]), undefined);
     });
   });
 
