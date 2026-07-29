@@ -23,15 +23,23 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 - **[sf raven object display fields](#sf-raven-object-display-fields)** - _Show field information for a given sObject._
 - **[sf raven object display recordtypes](#sf-raven-object-display-recordtypes)** - _Show RecordType information for a given sObject._
 - **[sf raven object display validationrules](#sf-raven-object-display-validationrules)** - _Show Validation Rule information for a given sObject._
+- **[sf raven object display fieldusage](#sf-raven-object-display-fieldusage)** - _Show how many records actually populate each field on an sObject._
+- **[sf raven object display picklists](#sf-raven-object-display-picklists)** - _Show picklist values for the fields on an sObject, as a record type availability matrix._
 - **[sf raven inspect automations](#sf-raven-inspect-automations)** - _Show all automation that fires on a given sObject._
 - **[sf raven inspect dependencies](#sf-raven-inspect-dependencies)** - _Show what a metadata component depends on and what depends on it._
 - **[sf raven inspect field](#sf-raven-inspect-field)** - _Find everywhere a field is referenced across the org's metadata._
+- **[sf raven inspect jobs](#sf-raven-inspect-jobs)** - _Show async and scheduled jobs running in an org._
 - **[sf raven audit display](#sf-raven-audit-display)** - _Show recent entries in the Setup Audit Trail._
 - **[sf raven event subscribe](#sf-raven-event-subscribe)** - _Subscribe to Platform Events, streamed to your terminal._
+- **[sf raven event publish](#sf-raven-event-publish)** - _Publish Platform Events from an inline payload or a JSON file._
 - **[sf raven deploy cancel](#sf-raven-deploy-cancel)** - _Query an org for pending or in progress Salesforce deployments, and cancel them._
 - **[sf raven query ids](#sf-raven-query-ids)** - _Run a SOQL query against a large list of Salesforce IDs._
-- **[sf raven query record](#sf-raven-query-record)** - _Fetch any record by id with full-field output._
+- **[sf raven query record](#sf-raven-query-record)** - _Fetch any record by id with full-field output, and its field history._
+- **[sf raven query recent](#sf-raven-query-recent)** - _Show the most recently created, or modified, records for an sObject._
 - **[sf raven apex log](#sf-raven-apex-log)** - _Tail Apex debug logs in real time, streamed to your terminal - a wrapper around the native `sf apex tail log` that makes it better._
+- **[sf raven apex run](#sf-raven-apex-run)** - _Execute an anonymous Apex file and print clean debug output, re-running on every save if you want._
+- **[sf raven open](#sf-raven-open)** - _Open a record, object, or Setup page in the browser, already logged in._
+- **[sf raven org info](#sf-raven-org-info)** - _Show a summary card for an org - identity, storage and API limits, users and licenses, release._
 - **[sf raven pull](#sf-raven-pull)** - _Update Salesforce metadata into the local project via a fuzzy finder._
 - **[sf raven pull list](#sf-raven-pull-list)** - _List metadata types and components available to pull, as JSON for machine consumption._
 - **[sf raven pull remote](#sf-raven-pull-remote)** - _Retrieve Salesforce metadata that exists in the org but not locally, by selecting a configured metadata type and then one or more remote components._
@@ -217,6 +225,108 @@ Valid_Billing_Country    false   Billing country must be ISO code  Enter a valid
 ...
 ```
 
+### sf raven object display fieldusage
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-object-display-fieldusage.gif" alt="sf raven object display fieldusage demo"/></details>
+
+Samples the newest records on an sObject and reports what percentage of them have a value in each field, dead fields first - the list you want in front of you before a field cleanup.
+
+By default the newest 1000 records are sampled; use `--sample-size` to change that, or `--deep` to count every record in the org with one COUNT query per field. When the object has fewer records than the sample size, the numbers are exact either way.
+
+```
+USAGE
+  $ sf raven object display fieldusage -o <value> -s <value> [--json] [--field <value>] [--custom-only]
+    [--sample-size <value>] [--deep] [-c <value>]
+
+FLAGS
+  -c, --csv=<value>          Write the results to this file as CSV instead of printing a table.
+  -o, --target-org=<value>   (required) Login username or alias for the target org.
+  -s, --sobject=<value>      (required) API name of the sObject. Accepts a comma-separated list.
+      --custom-only          Only report on custom (__c) fields.
+      --deep                 Count every record in the org instead of sampling, with one COUNT query per field. Slower,
+                             but exact. Fields that cannot be filtered on keep their sampled figure and are marked.
+      --field=<value>        Only report on these fields, as a comma-separated list of API names.
+      --sample-size=<value>  [default: 1000] How many of the newest records to sample.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Show how many records populate each field on an sObject.
+
+  Samples the newest records on the object and reports what percentage of them have a value in each field, dead fields
+  first. Use it to find candidates for deletion before a cleanup.
+
+  By default the newest 1000 records are sampled; raise or lower that with --sample-size. When the object has fewer
+  records than the sample size, the numbers are exact.
+
+  Compound parent fields (Address, Geolocation) are skipped and their components counted instead. Formula fields are
+  included.
+
+EXAMPLES
+  Show field usage for Account:
+  $ sf raven object display fieldusage --sobject Account
+
+  Sample more records across several objects:
+  $ sf raven object display fieldusage --sobject Account,Contact --sample-size 5000
+
+  Get exact org-wide numbers instead of a sample:
+  $ sf raven object display fieldusage --sobject Account --deep
+
+  Only look at custom fields:
+  $ sf raven object display fieldusage --sobject Account --custom-only
+
+  Check specific fields and write the result to a file:
+  $ sf raven object display fieldusage --sobject Account --field Industry,Rating --csv usage.csv
+```
+
+### sf raven object display picklists
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-object-display-picklists.gif" alt="sf raven object display picklists demo"/></details>
+
+Lists the active values of every picklist field on an sObject, with the label and API name of each value.
+
+On objects that use record types the values are shown as a matrix - one column per record type, including Master, with a check mark where the value is available and a star where it is that record type's default. Objects without record types get a flat list.
+
+```
+USAGE
+  $ sf raven object display picklists -o <value> -s <value> [--json] [--field <value>] [-c <value>]
+
+FLAGS
+  -c, --csv=<value>         Write the values to this file as CSV instead of printing them.
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+  -s, --sobject=<value>     (required) API name of the sObject. Accepts a comma-separated list.
+      --field=<value>       Only show these picklist fields, as a comma-separated list of API names.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Show picklist values for the fields on an sObject.
+
+  Lists the active values of every picklist field on the object, with the label and API name of each value. The global
+  default value is marked with an asterisk, and dependent picklists note the field that controls them.
+
+  On objects that use record types, values are shown as a matrix: one column per record type, including Master, with a
+  check mark where the value is available and a star where it is that record type's default. Record types you cannot
+  access are shown as unavailable rather than failing the command. Objects without record types get the flat list.
+
+  Multi-select picklists are included.
+
+EXAMPLES
+  Show every picklist on Account:
+  $ sf raven object display picklists --sobject Account
+
+  Show picklists across several objects:
+  $ sf raven object display picklists --sobject Account,Contact
+
+  Narrow to specific fields:
+  $ sf raven object display picklists --sobject Account --field Industry,Rating
+
+  Write the values to a file:
+  $ sf raven object display picklists --sobject Account --csv picklists.csv
+```
+
 ### sf raven inspect automations
 
 <details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-inspect-automations.gif" alt="sf raven inspect automations demo"/></details>
@@ -365,6 +475,50 @@ Type       Name                 Source
 ApexClass  AccountService       dependency
 Flow       Sync_Account_to_ERP  dependency
 Layout     Account Layout       deep
+```
+
+### sf raven inspect jobs
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-inspect-jobs.gif" alt="sf raven inspect jobs demo"/></details>
+
+Prints two sections.
+
+**Async jobs** covers the org's asynchronous Apex - everything currently in flight (Holding, Queued, Preparing, Processing) plus anything that finished in the last 24 hours, newest first. Failed jobs print their extended status beneath the row.
+
+**Scheduled jobs** lists every CronTrigger, soonest next run first, with the cron expression rendered to English.
+
+```
+USAGE
+  $ sf raven inspect jobs -o <value> [--json] [--since <value>] [--limit <value>]
+
+FLAGS
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+      --limit=<value>       [default: 50] Maximum number of rows to return.
+      --since=<value>       [default: 24h] How far back to include finished jobs, as a number followed by m, h, or d
+                            (for example 90m, 2h, 3d).
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Show async and scheduled jobs running in an org.
+
+  Prints two sections. Async jobs covers the org's asynchronous Apex: everything currently in flight (Holding, Queued,
+  Preparing, Processing) plus anything that finished in the last 24 hours, newest first. Widen the finished-job window
+  with --since and raise the 50-row cap with --limit. Failed jobs print their extended status beneath the row.
+
+  Scheduled jobs lists every CronTrigger, soonest next run first, with the cron expression rendered to English. Jobs
+  that will never fire again sink to the bottom, and any job not in the WAITING state is marked on its row.
+
+EXAMPLES
+  Show jobs for the default org:
+  $ sf raven inspect jobs
+
+  Show jobs for a specific org:
+  $ sf raven inspect jobs --target-org dev
+
+  Include everything that finished in the last three days:
+  $ sf raven inspect jobs --since 3d --limit 200
 ```
 
 ### sf raven pull
@@ -658,9 +812,13 @@ EXAMPLES
 
 Detect the object from the record id's key prefix, describe the object to build the full field list, query every field, and render the record transposed for the terminal: fields as rows, one column per record. If the key prefix is unknown to the regular API, detection falls back to the Tooling API, so setup entities (e.g. ApexClass) work the same way. Long values are truncated with an ellipsis; null values render as blank cells.
 
+Add `--history` to print what changed on the record beneath it, for objects with field history tracking enabled.
+
+<details><summary>👀 Click to see <code>--history</code></summary><br/><img src="media/demos/raven-query-record-history.gif" alt="sf raven query record --history demo"/></details>
+
 ```
 USAGE
-  $ sf raven query record -o <value> -i <value> [--json] [-f <value> | -e <value>] [-F table|json|csv|toon] [-t <value>] [--omit-null]
+  $ sf raven query record -o <value> -i <value> [--json] [-f <value> | -e <value>] [-F table|json|csv|toon] [-t <value>] [--omit-null] [--history]
 
 FLAGS
   -F, --format=<option>       [default: table] Output format: table (transposed, for the terminal), json (raw records array), csv (one row per record), or toon (TOON-encoded records array). Non-table formats never truncate values. <options: table|json|csv|toon>
@@ -669,6 +827,7 @@ FLAGS
   -i, --record-ids=<value>    (required) Comma-delimited list of 15 or 18 character record ids to fetch.
   -o, --target-org=<value>    (required) Login username or alias for the target org.
   -t, --truncate=<value>      [default: 80] Width at which table cell values are truncated with an ellipsis; 0 means unlimited. Table output only.
+      --history               Also show field history for each record, when history tracking is enabled on the object. Not supported with csv or toon output.
       --omit-null             Omit table rows where every record's value is null. Table output only.
 
 GLOBAL FLAGS
@@ -688,11 +847,68 @@ EXAMPLES
 
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --omit-null --truncate 0
 
+  $ sf raven query record --record-ids 001Kf00001aBcDeFGH --history
+
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --format csv
 
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --format toon
 
   $ sf raven query record --record-ids 001Kf00001aBcDeFGH --json
+```
+
+### sf raven query recent
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-query-recent.gif" alt="sf raven query recent demo"/></details>
+
+A zero-friction list view for poking at what just happened in an org: the newest records for an object, one row each.
+
+By default you get the record Id, its name field, when it was created, and who created it. Use `--modified` to sort and report on last modification instead. `--fields` is additive - whatever you name is appended to those defaults rather than replacing them.
+
+```
+USAGE
+  $ sf raven query recent SOBJECT -o <value> [--json] [-l <value>] [--modified] [--recordtype
+    <value>] [-f <value>] [-F table|json|csv|toon] [-t <value>]
+
+ARGUMENTS
+  SOBJECT  API name of the sObject to list.
+
+FLAGS
+  -F, --format=<option>     [default: table] Output format.
+                            <options: table|json|csv|toon>
+  -f, --fields=<value>      Extra fields to show, as a comma-separated list. Appended to the default columns.
+  -l, --limit=<value>       [default: 10] How many records to show.
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+  -t, --truncate=<value>    [default: 80] Truncate cell values to this many characters. Use 0 to disable.
+      --modified            Sort by last modified date instead of created date, and show the modification columns.
+      --recordtype=<value>  Only show records with this record type developer name.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Show the most recently created records for an sObject.
+
+  A zero-friction list view for poking at what just happened in an org: the newest records for an object, one row each.
+
+  By default you get the record Id, its name field, when it was created, and who created it. Use --modified to sort and
+  report on last modification instead. --fields is additive: whatever you name is appended to those defaults rather than
+  replacing them.
+
+EXAMPLES
+  Show the 10 newest Accounts:
+  $ sf raven query recent Account
+
+  Show the 25 most recently modified Cases:
+  $ sf raven query recent Case --modified --limit 25
+
+  Add extra columns:
+  $ sf raven query recent Opportunity --fields StageName,Amount
+
+  Only look at one record type:
+  $ sf raven query recent Opportunity --recordtype Enterprise
+
+  Output as CSV:
+  $ sf raven query recent Account --format csv
 ```
 
 ### sf raven audit display
@@ -792,6 +1008,50 @@ OUTPUT
 }
 ```
 
+### sf raven event publish
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-event-publish.gif" alt="sf raven event publish demo"/></details>
+
+The write-side twin of [event subscribe](#sf-raven-event-subscribe), for testing platform event triggers end to end.
+
+The payload can be a path to a JSON file or an inline JSON string - anything starting with `{` or `[` is treated as inline JSON. A top-level object publishes one event, a top-level array publishes each of its elements in order, one result line each.
+
+```
+USAGE
+  $ sf raven event publish -o <value> -e <value> -p <value> [--json]
+
+FLAGS
+  -e, --event=<value>       (required) API name of the platform event, for example Order_Event__e. A /event/ prefix is
+                            accepted and ignored.
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+  -p, --payload=<value>     (required) Path to a JSON file, or an inline JSON object or array.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Publish a platform event.
+
+  The write-side twin of event subscribe, for testing platform event triggers end to end.
+
+  The payload can be a path to a JSON file or an inline JSON string; anything starting with { or [ is treated as inline
+  JSON. A top-level object publishes one event, a top-level array publishes each of its elements in order, one result
+  line each.
+
+  The event API name is not validated up front, so an unknown event or an unrecognised field comes back as the API's own
+  error.
+
+EXAMPLES
+  Publish one event from an inline payload:
+  $ sf raven event publish --event Order_Event__e --payload '{"Order_Number__c":"A-1001"}'
+
+  Publish a batch from a file:
+  $ sf raven event publish --event Order_Event__e --payload events.json
+
+  The subscribe-style channel prefix is accepted too:
+  $ sf raven event publish --event /event/Order_Event__e --payload '{"Order_Number__c":"A-1001"}'
+```
+
 ### sf raven apex log
 
 <details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-apex-log.gif" alt="sf raven apex log demo"/></details>
@@ -850,4 +1110,165 @@ Tailing logs for tom.carman@myorg.com. Press Ctrl+C to stop.
 ── UserTrigger  09:32:04  18ms ──
   [12]  DEBUG    entering trigger
   ⚠  [47]  System.NullPointerException: Attempt to de-reference a null object
+```
+
+### sf raven apex run
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-apex-run.gif" alt="sf raven apex run demo"/></details>
+
+Runs an anonymous Apex file against the target org and prints the resulting debug log, filtered to `USER_DEBUG` statements and exceptions by default.
+
+Execution uses the SOAP debugging header, so each run's log comes back with the result. No trace flag is needed and logs from other org activity are never mixed in - unlike [apex log](#sf-raven-apex-log), which tails everything.
+
+* `--watch` re-runs the file every time you save it, so you can iterate in your editor and watch the output land in the terminal
+* `--ndjson` streams a watch loop as machine-readable events, one JSON object per line
+* The command exits non-zero when the code fails to compile or throws at runtime, so it can be used in scripts
+
+```
+USAGE
+  $ sf raven apex run [--json] [-o <value>] [-f <value>] [--filter <value>] [--raw] [-w]
+    [--ndjson]
+
+FLAGS
+  -f, --file=<value>        [default: scripts/apex/scratch.apex] Path to the anonymous Apex file to execute.
+  -o, --target-org=<value>  Login username or alias for the target org. Uses the default org when omitted.
+  -w, --watch               Re-run the file every time it changes on disk. Press Ctrl+C to stop. Cannot be combined with
+                            --json.
+      --filter=<value>      Only show USER_DEBUG lines containing this string. Errors and exceptions are always shown.
+      --ndjson              Stream machine-readable NDJSON events, one JSON object per line, instead of formatted
+                            output. Requires --watch.
+      --raw                 Print the full log body instead of filtering to USER_DEBUG and exception lines.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Execute an anonymous Apex file and print clean debug output.
+
+  Runs an anonymous Apex file against the target org and prints the resulting debug log, filtered to USER_DEBUG
+  statements and exceptions by default.
+
+  Execution uses the SOAP debugging header, so each run's log is returned with the result. No trace flag is needed and
+  logs from other org activity are never mixed in.
+
+  The command exits non-zero when the code fails to compile or throws at runtime, so it can be used in scripts.
+
+EXAMPLES
+  Run the default scratch file against the default org:
+  $ sf raven apex run
+
+  Run a specific file against a specific org:
+  $ sf raven apex run --file scripts/apex/backfill.apex --target-org dev
+
+  Only show debug lines containing a specific string:
+  $ sf raven apex run --filter MyDebugPrefix
+
+  Show the full raw log body:
+  $ sf raven apex run --raw
+
+  Re-run the file every time it is saved:
+  $ sf raven apex run --watch
+
+  Stream machine-readable results from a watch loop:
+  $ sf raven apex run --watch --ndjson
+```
+
+### sf raven open
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-open.gif" alt="sf raven open demo"/></details>
+
+Resolves the thing you name and opens it in your default browser using a single-use frontdoor URL, so you land in the org already logged in.
+
+Resolution runs in tiers:
+
+1. A 15- or 18-character record Id is opened directly - Salesforce redirects to whichever view is right for that object, including tooling objects
+2. Otherwise the name is matched against sObjects (API name, API name ignoring the namespace and `__c` suffix, then label) and opened in Object Manager
+3. Then against the built-in Setup page aliases
+4. Then against Apex class and Flow names in the org
+5. If every exact tier misses, a fuzzy pass matches the name as a substring of any Setup alias or sObject name or label. One hit opens; several offer a picker
+
+Projects can define their own Setup aliases in `sfdx-project.json` under `plugins.sf-raven.open.aliases`, as a map of alias to Setup path (for example `{ "einstein": "EinsteinGPT/home" }`). They are merged over the built-ins, so a project alias wins on conflict.
+
+```
+USAGE
+  $ sf raven open THING -o <value> [--json] [-r]
+
+ARGUMENTS
+  THING  Record Id, sObject name, Setup page alias, Apex class name, or Flow name to open.
+
+FLAGS
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+  -r, --url-only            Print the resolved URL instead of opening a browser. The URL is single-use and short-lived.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Open a record, object, or Setup page in the browser.
+
+  Resolves the thing you name and opens it in your default browser using a single-use frontdoor URL, so you land in the
+  org already logged in.
+
+  Resolution runs in tiers. A 15- or 18-character record Id is opened directly: Salesforce redirects to whichever view
+  is right for that object, including tooling objects. Otherwise the name is matched against sObjects (API name, API
+  name ignoring the namespace and __c suffix, then label) and opened in Object Manager. Then it is matched against the
+  Setup page aliases, and finally against Apex class and Flow names in the org.
+
+  If every exact tier misses, a fuzzy pass matches the name as a substring of any Setup alias or sObject name or label.
+  One hit opens; several offer a picker.
+
+  Projects can define their own Setup aliases in sfdx-project.json under plugins.sf-raven.open.aliases, as a map of
+  alias to Setup path (for example { "einstein": "EinsteinGPT/home" }). They are merged over the built-ins, so a project
+  alias wins on conflict.
+
+EXAMPLES
+  Open a record by Id:
+  $ sf raven open 0015g00000ABCDEfGH --target-org dev
+
+  Open an object in Object Manager, matching without the __c suffix:
+  $ sf raven open invoice
+
+  Open a Setup page by alias:
+  $ sf raven open perm-sets
+
+  Open an Apex class or Flow by name:
+  $ sf raven open AccountTriggerHandler
+
+  Print the URL instead of launching a browser:
+  $ sf raven open 0015g00000ABCDEfGH --url-only
+```
+
+### sf raven org info
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-org-info.gif" alt="sf raven org info demo"/></details>
+
+The things you would otherwise click through Setup for, in one place: who the org is, what it is using of its storage and API limits, how many users it has and under which licenses, and which release it is on.
+
+The release and maintenance section comes from the Salesforce Trust API, the one call that leaves your org. If it cannot be reached the section reports as unavailable and the rest of the card still prints.
+
+```
+USAGE
+  $ sf raven org info -o <value> [--json]
+
+FLAGS
+  -o, --target-org=<value>  (required) Login username or alias for the target org.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Show a summary card for an org.
+
+  The things you would otherwise click through Setup for, in one place: who the org is, what it is using of its storage
+  and API limits, how many users it has and under which licenses, and which release it is on.
+
+  The release and maintenance section comes from the Salesforce Trust API, the one call that leaves your org. If it
+  cannot be reached the section reports as unavailable and the rest of the card still prints.
+
+EXAMPLES
+  Show the summary for the default org:
+  $ sf raven org info
+
+  Show the summary for a specific org:
+  $ sf raven org info --target-org dev
 ```
