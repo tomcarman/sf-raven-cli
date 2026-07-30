@@ -77,6 +77,23 @@ The plugin can be updated to the latest version using
 
 `sf plugins update`
 
+### Tab completion
+
+The `sf` cli ships with autocomplete built in, and it covers this plugin's commands and flags too - there's nothing extra to install. If you've not set it up before, run `sf autocomplete` and follow the instructions for your shell. For zsh that's:
+
+```sh
+printf "$(sf autocomplete script zsh)" >> ~/.zshrc; source ~/.zshrc
+```
+
+Then `sf raven <TAB>` completes topics and commands, and `sf raven inspect dependencies --<TAB>` completes flags. On zsh, flags with a fixed set of values complete those values too, e.g. `sf raven query recent --format <TAB>` offers `table json csv toon`. Bash completes command and flag names only.
+
+> [!IMPORTANT]
+> Completions are generated from a cache, so newly added commands won't show up after installing or updating the plugin until you refresh it:
+>
+> ```sh
+> sf autocomplete --refresh-cache
+> ```
+
 ### Install from source
 
 1. Install the [sf cli](https://developer.salesforce.com/tools/salesforcecli)
@@ -383,12 +400,13 @@ For CustomField, provide the name as ObjectApiName.FieldApiName (e.g. Account.My
 
 ```
 USAGE
-  $ sf raven inspect dependencies -o <value> -t <value> -n <value> [--json]
+  $ sf raven inspect dependencies -o <value> -t ApexClass|ApexTrigger|Flow|CustomObject|CustomField|LightningComponentBundle|AuraDefinitionBundle -n <value> [--json]
 
 FLAGS
   -n, --name=<value>        (required) The API name of the component. For CustomField use ObjectName.FieldName format.
   -o, --target-org=<value>  (required) Login username or alias for the target org.
-  -t, --type=<value>        (required) The metadata type of the component (e.g. ApexClass, Flow, CustomObject, CustomField).
+  -t, --type=<option>       (required) The metadata type of the component.
+                            <options: ApexClass|ApexTrigger|Flow|CustomObject|CustomField|LightningComponentBundle|AuraDefinitionBundle>
 
 GLOBAL FLAGS
   --json  Format output as json.

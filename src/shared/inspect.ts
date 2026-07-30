@@ -52,9 +52,21 @@ export type ToolingInspectConnection = {
   query: <T>(soql: string) => Promise<{ records: T[] }>;
 };
 
+export const dependencyComponentTypes = [
+  'ApexClass',
+  'ApexTrigger',
+  'Flow',
+  'CustomObject',
+  'CustomField',
+  'LightningComponentBundle',
+  'AuraDefinitionBundle',
+] as const;
+
+export type DependencyComponentType = (typeof dependencyComponentTypes)[number];
+
 export const resolveComponentId = async (
   connection: ToolingInspectConnection,
-  type: string,
+  type: DependencyComponentType,
   name: string
 ): Promise<string> => {
   switch (type) {
@@ -103,7 +115,9 @@ export const resolveComponentId = async (
       return requireId(result.records[0]?.Id, type, name);
     }
     default:
-      throw new Error(`Unsupported component type: ${type}. Supported types: ApexClass, ApexTrigger, Flow, CustomObject, CustomField, LightningComponentBundle, AuraDefinitionBundle`);
+      throw new Error(
+        `Unsupported component type: ${String(type)}. Supported types: ${dependencyComponentTypes.join(', ')}`
+      );
   }
 };
 

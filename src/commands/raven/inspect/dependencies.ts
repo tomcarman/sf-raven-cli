@@ -1,6 +1,12 @@
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { queryDependencies, resolveComponentId, type DependencyRef, type ToolingInspectConnection } from '../../../shared/inspect.js';
+import {
+  dependencyComponentTypes,
+  queryDependencies,
+  resolveComponentId,
+  type DependencyRef,
+  type ToolingInspectConnection,
+} from '../../../shared/inspect.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.inspect.dependencies');
@@ -23,11 +29,12 @@ export default class RavenInspectDependencies extends SfCommand<RavenInspectDepe
       char: 'o',
       required: true,
     }),
-    type: Flags.string({
+    type: Flags.option({
       summary: messages.getMessage('flags.type.summary'),
       char: 't',
       required: true,
-    }),
+      options: dependencyComponentTypes,
+    })(),
     name: Flags.string({
       summary: messages.getMessage('flags.name.summary'),
       char: 'n',

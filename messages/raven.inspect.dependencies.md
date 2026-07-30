@@ -16,7 +16,7 @@ Login username or alias for the target org.
 
 # flags.type.summary
 
-The metadata type of the component (e.g. ApexClass, Flow, CustomObject, CustomField).
+The metadata type of the component.
 
 # flags.name.summary
 
