@@ -165,8 +165,7 @@ export const formatUsageMethod = (field: FieldUsage, objectMethod: UsageMethod):
  * for `boolean != null`, which would report every checkbox as 0% populated.
  * They keep their sampled figure, which correctly reads 100%.
  */
-export const isDeepCountable = (field: DescribeField): boolean =>
-  field.filterable === true && field.type !== 'boolean';
+export const isDeepCountable = (field: DescribeField): boolean => field.filterable === true && field.type !== 'boolean';
 
 export const buildDeepCountQuery = (sobject: string, fieldName: string): string =>
   `SELECT COUNT() FROM ${sobject} WHERE ${fieldName} != null`;

@@ -70,7 +70,10 @@ export default class EventPublish extends SfCommand<EventPublishResult> {
 
 const readEvents = async (payload: string): Promise<Array<Record<string, unknown>>> => {
   if (isInlinePayload(payload)) {
-    return toEventRecords(parsePayload(payload, messages.getMessage('label.inlinePayload')), messages.getMessage('label.inlinePayload'));
+    return toEventRecords(
+      parsePayload(payload, messages.getMessage('label.inlinePayload')),
+      messages.getMessage('label.inlinePayload')
+    );
   }
 
   const path = resolve(payload);
@@ -107,5 +110,12 @@ const publishOne = async (
 
 const formatResultLine = (result: PublishResult, eventName: string): string =>
   result.success
-    ? `${chalk.green('✓')} ${messages.getMessage('info.published', [String(result.index + 1), eventName, result.id ?? ''])}`
-    : `${chalk.red('✗')} ${messages.getMessage('info.failed', [String(result.index + 1), (result.errors ?? []).join('; ')])}`;
+    ? `${chalk.green('✓')} ${messages.getMessage('info.published', [
+        String(result.index + 1),
+        eventName,
+        result.id ?? '',
+      ])}`
+    : `${chalk.red('✗')} ${messages.getMessage('info.failed', [
+        String(result.index + 1),
+        (result.errors ?? []).join('; '),
+      ])}`;

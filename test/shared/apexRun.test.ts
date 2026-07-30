@@ -10,7 +10,9 @@ import {
 } from '../../src/shared/apexRun.js';
 import { stripAnsi } from '../../src/shared/table.js';
 
-const debugLog = ['10:00:00.1 (1)|USER_DEBUG|[3]|DEBUG|hello', '10:00:00.2 (2)|USER_DEBUG|[4]|DEBUG|goodbye'].join('\n');
+const debugLog = ['10:00:00.1 (1)|USER_DEBUG|[3]|DEBUG|hello', '10:00:00.2 (2)|USER_DEBUG|[4]|DEBUG|goodbye'].join(
+  '\n'
+);
 
 describe('apex run result', () => {
   describe('buildApexRunResult', () => {
@@ -59,7 +61,7 @@ describe('apex run result', () => {
             {
               lineNumber: 3,
               columnNumber: 12,
-              compileProblem: "Variable does not exist: foo",
+              compileProblem: 'Variable does not exist: foo',
               exceptionMessage: '',
               exceptionStackTrace: '',
             },
@@ -145,9 +147,7 @@ describe('apex run result', () => {
           compiled: true,
           success: false,
           logs: debugLog,
-          diagnostic: [
-            { compileProblem: '', exceptionMessage: 'boom', exceptionStackTrace: 'line 1\nline 2' },
-          ],
+          diagnostic: [{ compileProblem: '', exceptionMessage: 'boom', exceptionStackTrace: 'line 1\nline 2' }],
         },
         42
       );

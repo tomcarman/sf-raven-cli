@@ -100,12 +100,7 @@ const getTableColumns = (
 ): {
   [key: string]: {
     header: string;
-    get: (row: {
-      SObjectType: string;
-      Name: string;
-      DeveloperName: string;
-      Id: string;
-    }) => string;
+    get: (row: { SObjectType: string; Name: string; DeveloperName: string; Id: string }) => string;
   };
 } => ({
   ...(includeObjectColumn

@@ -145,9 +145,21 @@ describe('org info', () => {
       releaseVersion: "Summer '26 Patch 12.10",
       releaseNumber: '262.12.10',
       Maintenances: [
-        { name: 'Past window', plannedStartTime: '2026-06-01T04:00:00.000Z', plannedEndTime: '2026-06-01T05:00:00.000Z' },
-        { name: "Winter '27", plannedStartTime: '2026-10-10T04:00:00.000Z', plannedEndTime: '2026-10-10T04:30:00.000Z' },
-        { name: 'IP list update', plannedStartTime: '2026-08-08T22:13:00.000Z', plannedEndTime: '2026-08-08T22:13:00.000Z' },
+        {
+          name: 'Past window',
+          plannedStartTime: '2026-06-01T04:00:00.000Z',
+          plannedEndTime: '2026-06-01T05:00:00.000Z',
+        },
+        {
+          name: "Winter '27",
+          plannedStartTime: '2026-10-10T04:00:00.000Z',
+          plannedEndTime: '2026-10-10T04:30:00.000Z',
+        },
+        {
+          name: 'IP list update',
+          plannedStartTime: '2026-08-08T22:13:00.000Z',
+          plannedEndTime: '2026-08-08T22:13:00.000Z',
+        },
       ],
     };
 
@@ -162,10 +174,10 @@ describe('org info', () => {
     it('drops finished windows and orders the rest soonest first', () => {
       const release = parseTrustStatus(response, now);
 
-      assert.deepEqual(
-        release.available ? release.maintenances.map((window) => window.name) : [],
-        ['IP list update', "Winter '27"]
-      );
+      assert.deepEqual(release.available ? release.maintenances.map((window) => window.name) : [], [
+        'IP list update',
+        "Winter '27",
+      ]);
     });
 
     it('keeps the list short', () => {
@@ -198,8 +210,11 @@ describe('org info', () => {
         true
       );
       assert.equal(
-        formatMaintenanceWindow({ name: 'x', start: '2026-10-10T04:00:00.000Z', end: '2026-10-10T04:30:00.000Z' })
-          .split(' to ')[1].length,
+        formatMaintenanceWindow({
+          name: 'x',
+          start: '2026-10-10T04:00:00.000Z',
+          end: '2026-10-10T04:30:00.000Z',
+        }).split(' to ')[1].length,
         5
       );
     });

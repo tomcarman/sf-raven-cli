@@ -1,14 +1,24 @@
 import select from '@inquirer/select';
 import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { getEffectiveRemoteMetadataTypes, getOrgOnlyMetadataNamesForType, isPromptForceCloseError, retrieveMetadataNames, selectItems } from '../../../shared/pull.js';
+import {
+  getEffectiveRemoteMetadataTypes,
+  getOrgOnlyMetadataNamesForType,
+  isPromptForceCloseError,
+  retrieveMetadataNames,
+  selectItems,
+} from '../../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.pull.remote');
 
 const orgOnlyPrefix = '☁  ';
 
-type SelectPrompt = <Value>(config: { message: string; choices: readonly unknown[]; pageSize?: number }) => Promise<Value>;
+type SelectPrompt = <Value>(config: {
+  message: string;
+  choices: readonly unknown[];
+  pageSize?: number;
+}) => Promise<Value>;
 
 const selectPrompt = select as unknown as SelectPrompt;
 
@@ -69,7 +79,9 @@ export default class RavenPullRemote extends SfCommand<RavenPullRemoteResult> {
       };
     }
 
-    const selectedDisplays = await selectItems(orgOnlyMetadata.map((metadataName) => `${orgOnlyPrefix}${metadataName}`));
+    const selectedDisplays = await selectItems(
+      orgOnlyMetadata.map((metadataName) => `${orgOnlyPrefix}${metadataName}`)
+    );
     const metadataNames = selectedDisplays.map((selectedDisplay) => selectedDisplay.replace(orgOnlyPrefix, ''));
 
     if (metadataNames.length === 0) {

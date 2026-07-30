@@ -109,7 +109,10 @@ describe('event publish', () => {
     it('does not treat the enqueued entry as an error on a failed publish', () => {
       const result = toPublishResult(4, {
         success: false,
-        errors: [{ statusCode: 'OPERATION_ENQUEUED', message: 'uuid' }, { statusCode: 'LIMIT', message: 'too many' }],
+        errors: [
+          { statusCode: 'OPERATION_ENQUEUED', message: 'uuid' },
+          { statusCode: 'LIMIT', message: 'too many' },
+        ],
       });
 
       assert.deepEqual(result.errors, ['LIMIT: too many']);

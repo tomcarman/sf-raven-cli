@@ -1,10 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-  buildErrorEvent,
-  buildLogEvent,
-  buildStatusEvent,
-  serializeEvent,
-} from '../../src/shared/apexLogEvents.js';
+import { buildErrorEvent, buildLogEvent, buildStatusEvent, serializeEvent } from '../../src/shared/apexLogEvents.js';
 
 describe('apex log NDJSON events', () => {
   describe('buildLogEvent', () => {

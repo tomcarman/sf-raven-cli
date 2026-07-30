@@ -139,12 +139,7 @@ const describeObject = async (connection: Connection, sobject: string): Promise<
   }
 };
 
-const formatRecentOutput = (
-  output: RecordOutput,
-  format: RecordFormat,
-  sortField: string,
-  truncate: number
-): string =>
+const formatRecentOutput = (output: RecordOutput, format: RecordFormat, sortField: string, truncate: number): string =>
   formatRecordOutput(output, format, () =>
     renderTable(output.records, recentColumns(output.fields, sortField, truncate)).join('\n')
   );

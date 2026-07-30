@@ -278,10 +278,7 @@ describe('record query', () => {
     it('rejects malformed ids before any API call', async () => {
       const connection = createFakeConnection();
 
-      await assert.rejects(
-        queryRecords(connection, { recordIds: `${accountId},not-an-id` }),
-        /not-an-id/
-      );
+      await assert.rejects(queryRecords(connection, { recordIds: `${accountId},not-an-id` }), /not-an-id/);
 
       assert.equal(connection.describeGlobalCalls, 0);
       assert.deepEqual(connection.describedObjects, []);
@@ -426,7 +423,8 @@ describe('record query', () => {
 
       await assert.rejects(
         queryRecords(connection, { recordIds: accountId, fields: 'Name,Foo__c,Bar' }),
-        (error: Error) => error.message.includes('Foo__c') && error.message.includes('Bar') && error.message.includes('Account')
+        (error: Error) =>
+          error.message.includes('Foo__c') && error.message.includes('Bar') && error.message.includes('Account')
       );
 
       assert.deepEqual(connection.queries, []);
@@ -493,10 +491,7 @@ describe('record query', () => {
         ],
       });
 
-      await assert.rejects(
-        queryRecords(connection, { recordIds: accountId, extraFields: 'Owner.Name,Nope' }),
-        /Nope/
-      );
+      await assert.rejects(queryRecords(connection, { recordIds: accountId, extraFields: 'Owner.Name,Nope' }), /Nope/);
 
       assert.deepEqual(connection.queries, []);
     });
@@ -628,12 +623,9 @@ describe('record query', () => {
 
       assert.equal(
         table,
-        [
-          'Field  001Kf00001aBcDeFGH',
-          '-----  ------------------',
-          'Id     001Kf00001aBcDeFGH',
-          'Name   Acme',
-        ].join('\n')
+        ['Field  001Kf00001aBcDeFGH', '-----  ------------------', 'Id     001Kf00001aBcDeFGH', 'Name   Acme'].join(
+          '\n'
+        )
       );
     });
 
@@ -783,12 +775,9 @@ describe('record query', () => {
 
       assert.equal(
         table,
-        [
-          'Field  001Kf00001aBcDeFGH',
-          '-----  ------------------',
-          'Id     001Kf00001aBcDeFGH',
-          'Name   Acme',
-        ].join('\n')
+        ['Field  001Kf00001aBcDeFGH', '-----  ------------------', 'Id     001Kf00001aBcDeFGH', 'Name   Acme'].join(
+          '\n'
+        )
       );
     });
 

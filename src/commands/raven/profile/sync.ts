@@ -43,7 +43,9 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
     const projectRoot = process.cwd();
     const connection = flags['target-org'].getConnection(await getSourceApiVersion(projectRoot));
-    const profileNames = flags.profile?.map((profileName) => profileName.trim()).filter((profileName) => profileName.length > 0);
+    const profileNames = flags.profile
+      ?.map((profileName) => profileName.trim())
+      .filter((profileName) => profileName.length > 0);
 
     if (profileNames != null && profileNames.length === 0) {
       throw messages.createError('error.noProfileNames');
@@ -93,7 +95,6 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
       throw error;
     }
   }
-
 }
 
 export const createProfileReader =
@@ -101,7 +102,12 @@ export const createProfileReader =
   async (batchNames: string[]): Promise<ProfileMetadata[]> =>
     ensureArray(await connection.metadata.read('Profile', batchNames)) as unknown as ProfileMetadata[];
 
-export const displaySyncResult = (ux: Ux, warn: (message: string) => void, result: ProfileSyncResult, dryRun: boolean): void => {
+export const displaySyncResult = (
+  ux: Ux,
+  warn: (message: string) => void,
+  result: ProfileSyncResult,
+  dryRun: boolean
+): void => {
   for (const profile of result.synced) {
     logSyncedProfile(ux, profile, dryRun);
   }

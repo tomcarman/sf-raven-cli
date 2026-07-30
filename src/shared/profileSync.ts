@@ -235,13 +235,22 @@ const isFieldPermissionKept = (entry: ProfileEntry, inventory: ComponentInventor
 // Sections without a rule, or without an isEntryKept predicate (userPermissions, loginIpRanges,
 // custom, userLicense, ...), are always kept in full.
 const sectionRules: Record<string, SectionRule> = {
-  applicationVisibilities: { sortKeys: ['application'], isEntryKept: referencesTracked('CustomApplication', 'application') },
-  categoryGroupVisibilities: { sortKeys: ['dataCategoryGroup'], isEntryKept: referencesTracked('DataCategoryGroup', 'dataCategoryGroup') },
+  applicationVisibilities: {
+    sortKeys: ['application'],
+    isEntryKept: referencesTracked('CustomApplication', 'application'),
+  },
+  categoryGroupVisibilities: {
+    sortKeys: ['dataCategoryGroup'],
+    isEntryKept: referencesTracked('DataCategoryGroup', 'dataCategoryGroup'),
+  },
   classAccesses: { sortKeys: ['apexClass'], isEntryKept: referencesTracked('ApexClass', 'apexClass') },
   customMetadataTypeAccesses: { sortKeys: ['name'], isEntryKept: referencesTracked('CustomObject', 'name') },
   customPermissions: { sortKeys: ['name'], isEntryKept: referencesTracked('CustomPermission', 'name') },
   customSettingAccesses: { sortKeys: ['name'], isEntryKept: referencesTracked('CustomObject', 'name') },
-  externalDataSourceAccesses: { sortKeys: ['externalDataSource'], isEntryKept: referencesTracked('ExternalDataSource', 'externalDataSource') },
+  externalDataSourceAccesses: {
+    sortKeys: ['externalDataSource'],
+    isEntryKept: referencesTracked('ExternalDataSource', 'externalDataSource'),
+  },
   fieldPermissions: { sortKeys: ['field'], isEntryKept: isFieldPermissionKept },
   flowAccesses: { sortKeys: ['flow'], isEntryKept: referencesTracked('Flow', 'flow') },
   layoutAssignments: { sortKeys: ['layout', 'recordType'], isEntryKept: referencesTracked('Layout', 'layout') },
@@ -379,7 +388,9 @@ const toCanonicalSection = (sectionName: string, value: unknown): unknown => {
     return value;
   }
 
-  return ensureArray(value).map(toOrderedEntry).sort(compareEntriesBy(sectionRules[sectionName]?.sortKeys ?? []));
+  return ensureArray(value)
+    .map(toOrderedEntry)
+    .sort(compareEntriesBy(sectionRules[sectionName]?.sortKeys ?? []));
 };
 
 const toOrderedEntry = (entry: ProfileEntry): ProfileEntry => mapEntry(entry, (leafValue) => leafValue);
@@ -414,7 +425,8 @@ const compareEntriesBy =
 const sortedKeyUnion = (left: object, right: object): string[] =>
   Array.from(new Set([...Object.keys(left), ...Object.keys(right)])).sort(compareAscii);
 
-const isEntryValue = (value: unknown): value is ProfileEntry | ProfileEntry[] => typeof value === 'object' && value != null;
+const isEntryValue = (value: unknown): value is ProfileEntry | ProfileEntry[] =>
+  typeof value === 'object' && value != null;
 
 const compareAscii = (left: string, right: string): number => {
   if (left < right) {

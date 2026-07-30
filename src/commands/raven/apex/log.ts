@@ -199,9 +199,7 @@ const writeEventLine = (event: StreamEvent): void => {
 };
 
 const resolveUserId = async (connection: ToolingConnection, username: string): Promise<string> => {
-  const result = await connection.query<UserRecord>(
-    `SELECT Id FROM User WHERE Username = '${username}' LIMIT 1`
-  );
+  const result = await connection.query<UserRecord>(`SELECT Id FROM User WHERE Username = '${username}' LIMIT 1`);
 
   if (result.records.length === 0) {
     throw new Error(`User not found: ${username}`);
@@ -245,7 +243,7 @@ const ensureTraceFlag = async (
 
 const ensureDebugLevel = async (connection: ToolingConnection): Promise<string> => {
   const existing = await connection.tooling.query<DebugLevelRecord>(
-    'SELECT Id FROM DebugLevel WHERE DeveloperName = \'sf_raven\' LIMIT 1'
+    "SELECT Id FROM DebugLevel WHERE DeveloperName = 'sf_raven' LIMIT 1"
   );
 
   if (existing.records.length > 0) {
@@ -316,7 +314,9 @@ const handleLogNotification = async (
 };
 
 const fetchLogBody = async (connection: ToolingConnection, logId: string): Promise<string> => {
-  const url = `${connection.instanceUrl}/services/data/v${connection.getApiVersion()}/tooling/sobjects/ApexLog/${logId}/Body`;
+  const url = `${
+    connection.instanceUrl
+  }/services/data/v${connection.getApiVersion()}/tooling/sobjects/ApexLog/${logId}/Body`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${connection.accessToken ?? ''}` },
   });
@@ -324,7 +324,10 @@ const fetchLogBody = async (connection: ToolingConnection, logId: string): Promi
   return response.text();
 };
 
-const fetchLogRecord = async (connection: ToolingConnection, logId: string): Promise<ApexLogRecordFields | undefined> => {
+const fetchLogRecord = async (
+  connection: ToolingConnection,
+  logId: string
+): Promise<ApexLogRecordFields | undefined> => {
   const result = await connection.tooling.query<ApexLogRecordFields>(
     `SELECT Operation, DurationMilliseconds, Status, StartTime FROM ApexLog WHERE Id = '${logId}' LIMIT 1`
   );

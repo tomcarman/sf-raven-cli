@@ -24,7 +24,11 @@ import { escapeSoqlString, isValidSalesforceId } from '../../shared/query.js';
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.open');
 
-type SelectPrompt = <Value>(config: { message: string; choices: readonly unknown[]; pageSize?: number }) => Promise<Value>;
+type SelectPrompt = <Value>(config: {
+  message: string;
+  choices: readonly unknown[];
+  pageSize?: number;
+}) => Promise<Value>;
 
 const selectPrompt = select as unknown as SelectPrompt;
 
@@ -38,10 +42,7 @@ export type RavenOpenResult = {
   url?: string;
 };
 
-type Resolution =
-  | { status: 'resolved'; target: OpenTarget }
-  | { status: 'cancelled' }
-  | { status: 'unresolved' };
+type Resolution = { status: 'resolved'; target: OpenTarget } | { status: 'cancelled' } | { status: 'unresolved' };
 
 export default class RavenOpen extends SfCommand<RavenOpenResult> {
   public static readonly summary = messages.getMessage('summary');

@@ -1,6 +1,12 @@
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { canonicalRefKey, deepSearchReferences, queryInboundOnly, type DependencyRef, type ToolingInspectConnection } from '../../../shared/inspect.js';
+import {
+  canonicalRefKey,
+  deepSearchReferences,
+  queryInboundOnly,
+  type DependencyRef,
+  type ToolingInspectConnection,
+} from '../../../shared/inspect.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.inspect.field');

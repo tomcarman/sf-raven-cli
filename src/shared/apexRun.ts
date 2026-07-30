@@ -105,13 +105,11 @@ export type RenderApexRunOptions = {
  * Builds the terminal output for one execution: the shared apex log header, then
  * either the full log body (--raw) or the colorized debug lines, then diagnostics.
  */
-export const renderApexRun = (
-  result: ApexRunResult,
-  logs: string,
-  options: RenderApexRunOptions = {}
-): string[] => {
+export const renderApexRun = (result: ApexRunResult, logs: string, options: RenderApexRunOptions = {}): string[] => {
   const status = result.success ? 'Success' : 'Failed';
-  const lines = [formatLogHeader('Execute Anonymous', options.startedAt ?? new Date().toISOString(), result.duration, status)];
+  const lines = [
+    formatLogHeader('Execute Anonymous', options.startedAt ?? new Date().toISOString(), result.duration, status),
+  ];
 
   if (options.raw) {
     lines.push(logs);

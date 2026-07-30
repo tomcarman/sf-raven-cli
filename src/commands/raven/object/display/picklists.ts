@@ -104,7 +104,10 @@ const describePicklists = async (
     return { sobject, fields };
   }
 
-  const columns = [{ id: masterRecordTypeId, developerName: masterRecordTypeName, name: masterRecordTypeName, accessible: true }, ...recordTypes];
+  const columns = [
+    { id: masterRecordTypeId, developerName: masterRecordTypeName, name: masterRecordTypeName, accessible: true },
+    ...recordTypes,
+  ];
   const availability = await fetchAvailability(connection, sobject, columns);
 
   return {

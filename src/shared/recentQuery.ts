@@ -69,11 +69,11 @@ export type RecentQueryOptions = {
 
 export const buildRecentQuery = (options: RecentQueryOptions): string => {
   const where =
-    options.recordType == null
-      ? ''
-      : ` WHERE RecordType.DeveloperName = '${escapeSoqlString(options.recordType)}'`;
+    options.recordType == null ? '' : ` WHERE RecordType.DeveloperName = '${escapeSoqlString(options.recordType)}'`;
 
-  return `SELECT ${options.fields.join(', ')} FROM ${options.sobject}${where} ORDER BY ${options.sortField} DESC LIMIT ${options.limit}`;
+  return `SELECT ${options.fields.join(', ')} FROM ${options.sobject}${where} ORDER BY ${
+    options.sortField
+  } DESC LIMIT ${options.limit}`;
 };
 
 const minute = 60;

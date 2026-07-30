@@ -138,7 +138,13 @@ const writeCsv = (filePath: string, records: ValidationRuleRecord[], includeObje
     columns.map(escapeCsvValue).join(','),
     ...records.map((record) =>
       (includeObjectColumn
-        ? [record.SObjectType, record.ValidationName, record.Active ? 'true' : 'false', record.Description ?? '', record.ErrorMessage]
+        ? [
+            record.SObjectType,
+            record.ValidationName,
+            record.Active ? 'true' : 'false',
+            record.Description ?? '',
+            record.ErrorMessage,
+          ]
         : [record.ValidationName, record.Active ? 'true' : 'false', record.Description ?? '', record.ErrorMessage]
       )
         .map(escapeCsvValue)

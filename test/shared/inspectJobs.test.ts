@@ -290,7 +290,10 @@ describe('inspect jobs', () => {
       });
 
       it('marks any other state on the row', () => {
-        assert.equal(stripAnsi(formatScheduledName(scheduled({ name: 'Nightly', state: 'PAUSED' }))), 'Nightly [PAUSED]');
+        assert.equal(
+          stripAnsi(formatScheduledName(scheduled({ name: 'Nightly', state: 'PAUSED' }))),
+          'Nightly [PAUSED]'
+        );
       });
     });
 

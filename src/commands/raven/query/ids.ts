@@ -1,7 +1,13 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { escapeCsvValue, getEncodedQueryLength, isPlainObject, isValidSalesforceId, maxEncodedQueryLength } from '../../../shared/query.js';
+import {
+  escapeCsvValue,
+  getEncodedQueryLength,
+  isPlainObject,
+  isValidSalesforceId,
+  maxEncodedQueryLength,
+} from '../../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.ids');
@@ -90,7 +96,10 @@ export default class QueryIds extends SfCommand<QueryIdsResult> {
       throw messages.createError('error.noIds');
     }
 
-    const batches = flags['batch-size'] == null ? buildAutomaticBatches(processedIds, flags.query) : buildFixedBatches(processedIds, flags['batch-size']);
+    const batches =
+      flags['batch-size'] == null
+        ? buildAutomaticBatches(processedIds, flags.query)
+        : buildFixedBatches(processedIds, flags['batch-size']);
     const connection = org.getConnection() as unknown as QueryConnection;
     const records: QueryRecord[] = [];
 
@@ -211,12 +220,10 @@ const buildAutomaticBatches = (ids: string[], query: string): string[][] => {
   return batches;
 };
 
-const buildQuery = (query: string, ids: string[]): string => query.replace(idsPlaceholder, `(${ids.map((id) => `'${id}'`).join(', ')})`);
+const buildQuery = (query: string, ids: string[]): string =>
+  query.replace(idsPlaceholder, `(${ids.map((id) => `'${id}'`).join(', ')})`);
 
-const runQuery = async (
-  connection: QueryConnection,
-  query: string
-): Promise<QueryRecord[]> => {
+const runQuery = async (connection: QueryConnection, query: string): Promise<QueryRecord[]> => {
   const records: QueryRecord[] = [];
   const result = await connection.query(query);
   records.push(...result.records);
@@ -231,7 +238,11 @@ type QueryConnection = {
   queryMore: (nextRecordsUrl: string) => Promise<QueryResult>;
 };
 
-const queryMoreRecords = async (connection: QueryConnection, result: QueryResult, records: QueryRecord[]): Promise<void> => {
+const queryMoreRecords = async (
+  connection: QueryConnection,
+  result: QueryResult,
+  records: QueryRecord[]
+): Promise<void> => {
   if (result.done || result.nextRecordsUrl == null) {
     return;
   }
@@ -276,7 +287,10 @@ const renderTable = (ux: Ux, records: QueryRecord[]): void => {
   }
 
   const columns = getColumns(records);
-  ux.table(records, Object.fromEntries(columns.map((column) => [column, { header: column, get: (row: QueryRecord) => row[column] }])));
+  ux.table(
+    records,
+    Object.fromEntries(columns.map((column) => [column, { header: column, get: (row: QueryRecord) => row[column] }]))
+  );
 };
 
 const getColumns = (records: QueryRecord[]): string[] => {

@@ -44,7 +44,11 @@ const cancelSelection = 'cancel' as const;
 
 type DeploySelection = DeployRequestRecord | typeof cancelSelection;
 type DeployChoice = Separator | { name: string; value: DeploySelection };
-type SelectPrompt = <Value>(config: { message: string; choices: readonly unknown[]; pageSize?: number }) => Promise<Value>;
+type SelectPrompt = <Value>(config: {
+  message: string;
+  choices: readonly unknown[];
+  pageSize?: number;
+}) => Promise<Value>;
 
 const selectPrompt = select as unknown as SelectPrompt;
 
@@ -152,7 +156,9 @@ const formatDeployRequest = (deployRequest: DeployRequestRecord): string => {
   }
 
   const startDate =
-    deployRequest.StartDate == null ? messages.getMessage('label.unknownStartDate') : dayjs(deployRequest.StartDate).format('DD/MM/YYYY HH:mm');
+    deployRequest.StartDate == null
+      ? messages.getMessage('label.unknownStartDate')
+      : dayjs(deployRequest.StartDate).format('DD/MM/YYYY HH:mm');
 
   return [
     startDate,
@@ -163,7 +169,11 @@ const formatDeployRequest = (deployRequest: DeployRequestRecord): string => {
       deployRequest.NumberComponentsTotal,
       deployRequest.NumberComponentErrors
     )}`,
-    `Apex Tests: ${formatProgress(deployRequest.NumberTestsCompleted, deployRequest.NumberTestsTotal, deployRequest.NumberTestErrors)}`,
+    `Apex Tests: ${formatProgress(
+      deployRequest.NumberTestsCompleted,
+      deployRequest.NumberTestsTotal,
+      deployRequest.NumberTestErrors
+    )}`,
   ].join(' | ');
 };
 
@@ -205,7 +215,6 @@ const getGroupedDeployChoices = (label: string, deployRequests: DeployRequestRec
           value: deployRequest,
         })),
       ];
-
 
 const formatProgress = (completed?: number | null, total?: number | null, errors?: number | null): string => {
   const completedValue = completed ?? 0;

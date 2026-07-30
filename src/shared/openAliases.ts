@@ -64,7 +64,10 @@ export type AliasMatch = {
   path: string;
 };
 
-export const findAlias = (thing: string, aliases: Readonly<Record<string, AliasDefinition>>): AliasMatch | undefined => {
+export const findAlias = (
+  thing: string,
+  aliases: Readonly<Record<string, AliasDefinition>>
+): AliasMatch | undefined => {
   const needle = thing.toLowerCase();
   const entries = Object.entries(aliases);
 

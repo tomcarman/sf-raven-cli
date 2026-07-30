@@ -48,7 +48,9 @@ export default class RavenPullList extends SfCommand<RavenPullListResult> {
       return result;
     }
 
-    const result = flags['all-types'] ? await getOrgTypeInventory(flags['target-org']) : await getTypeInventory(process.cwd());
+    const result = flags['all-types']
+      ? await getOrgTypeInventory(flags['target-org'])
+      : await getTypeInventory(process.cwd());
     displayTypes(ux, result);
     return result;
   }

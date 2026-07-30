@@ -1,6 +1,11 @@
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
-import { addRemoteMetadataTypes, getEffectiveRemoteMetadataTypes, listOrgMetadataTypes, selectItems } from '../../../../../shared/pull.js';
+import {
+  addRemoteMetadataTypes,
+  getEffectiveRemoteMetadataTypes,
+  listOrgMetadataTypes,
+  selectItems,
+} from '../../../../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.pull.remote.type.add');
@@ -44,7 +49,9 @@ export default class RavenPullRemoteTypeAdd extends SfCommand<RavenPullRemoteTyp
     }
 
     const existingMetadataTypeSet = new Set(existingMetadataTypes);
-    const availableMetadataTypes = orgMetadataTypes.filter((metadataType) => !existingMetadataTypeSet.has(metadataType));
+    const availableMetadataTypes = orgMetadataTypes.filter(
+      (metadataType) => !existingMetadataTypeSet.has(metadataType)
+    );
 
     if (availableMetadataTypes.length === 0) {
       ux.log(messages.getMessage('info.noAvailableMetadataTypes'));

@@ -128,7 +128,9 @@ describe('open targets', () => {
     });
 
     it('matches sObjects by substring of the API name or label', () => {
-      const names = fuzzyCandidates('accou', builtInAliases, sobjects, 'Setup page').map((candidate) => candidate.target.name);
+      const names = fuzzyCandidates('accou', builtInAliases, sobjects, 'Setup page').map(
+        (candidate) => candidate.target.name
+      );
 
       assert.deepEqual(names, ['Account', 'AccountContactRole']);
     });
@@ -138,7 +140,12 @@ describe('open targets', () => {
     });
 
     it('lists alias hits before sObject hits', () => {
-      const kinds = fuzzyCandidates('class', builtInAliases, [{ name: 'ApexClassMirror__c', label: 'Apex Class Mirror' }], 'Setup page').map((candidate) => candidate.target.kind);
+      const kinds = fuzzyCandidates(
+        'class',
+        builtInAliases,
+        [{ name: 'ApexClassMirror__c', label: 'Apex Class Mirror' }],
+        'Setup page'
+      ).map((candidate) => candidate.target.kind);
 
       assert.deepEqual(kinds, ['alias', 'sobject']);
     });

@@ -223,7 +223,6 @@ describe('field usage', () => {
         assert.equal(formatUsageMethod(usage({ method: 'sampled' }), 'sampled'), '');
       });
     });
-
   });
 
   describe('usageBar', () => {

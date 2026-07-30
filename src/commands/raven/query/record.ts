@@ -105,9 +105,7 @@ export default class QueryRecord extends SfCommand<QueryRecordResult> {
 
     const history = flags.history ? await this.loadHistory(org.getConnection(), result) : undefined;
 
-    ux.log(
-      formatOutput(result, flags.format, { truncate: flags.truncate, omitNull: flags['omit-null'] }, history)
-    );
+    ux.log(formatOutput(result, flags.format, { truncate: flags.truncate, omitNull: flags['omit-null'] }, history));
 
     if (history != null && flags.format === 'table') {
       for (const line of renderHistorySections(result.idsFound, history)) {
@@ -178,10 +176,7 @@ const formatOutput = (
   return formatRecordOutput(result, format, () => formatRecordTable(result, tableOptions));
 };
 
-const renderHistorySections = (
-  recordIds: readonly string[],
-  history: Record<string, HistoryRow[]>
-): string[] => {
+const renderHistorySections = (recordIds: readonly string[], history: Record<string, HistoryRow[]>): string[] => {
   const lines: string[] = [];
 
   for (const recordId of recordIds) {

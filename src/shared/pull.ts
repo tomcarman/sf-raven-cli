@@ -77,7 +77,9 @@ type MetadataTypeDescription = {
 const ignoredDirectoryNames = new Set(['.git', 'node_modules', '.sfdx', '.sf']);
 
 export const getExistingPackageDirectoryPaths = (projectRoot: string): string[] =>
-  getPackageDirectoryPaths(projectRoot).filter((packageDirectoryPath) => existsSync(join(projectRoot, packageDirectoryPath)));
+  getPackageDirectoryPaths(projectRoot).filter((packageDirectoryPath) =>
+    existsSync(join(projectRoot, packageDirectoryPath))
+  );
 
 export const getMetadataPaths = (projectRoot: string): string[] => {
   const packageDirectoryPaths = getExistingPackageDirectoryPaths(projectRoot);
@@ -129,7 +131,9 @@ export const addRemoteMetadataTypes = async (projectRoot: string, metadataTypes:
 
 export const removeRemoteMetadataTypes = async (projectRoot: string, metadataTypes: string[]): Promise<string[]> => {
   const metadataTypesToRemove = new Set(metadataTypes);
-  const updatedMetadataTypes = (await getEffectiveRemoteMetadataTypes(projectRoot)).filter((metadataType) => !metadataTypesToRemove.has(metadataType));
+  const updatedMetadataTypes = (await getEffectiveRemoteMetadataTypes(projectRoot)).filter(
+    (metadataType) => !metadataTypesToRemove.has(metadataType)
+  );
   await writeRemoteMetadataTypes(projectRoot, updatedMetadataTypes);
 
   return updatedMetadataTypes;
@@ -153,9 +157,13 @@ export const listOrgMetadataTypes = async (targetOrg?: string): Promise<string[]
   }
 
   const parsedResult = JSON.parse(result.stdout) as MetadataTypesResult;
-  const metadataTypes = Array.isArray(parsedResult.result) ? parsedResult.result : parsedResult.result?.metadataObjects ?? [];
+  const metadataTypes = Array.isArray(parsedResult.result)
+    ? parsedResult.result
+    : parsedResult.result?.metadataObjects ?? [];
 
-  return sortValues(metadataTypes.map(getMetadataTypeName).filter((metadataType): metadataType is string => metadataType != null));
+  return sortValues(
+    metadataTypes.map(getMetadataTypeName).filter((metadataType): metadataType is string => metadataType != null)
+  );
 };
 
 export const getTypeInventory = async (projectRoot: string): Promise<PullListTypesResult> => {
@@ -198,7 +206,10 @@ export const getComponentInventory = async (
 
   return {
     metadataType,
-    components: sortValues([...localFullNames, ...orgFullNames]).map((name) => ({ name, status: componentStatus(name) })),
+    components: sortValues([...localFullNames, ...orgFullNames]).map((name) => ({
+      name,
+      status: componentStatus(name),
+    })),
   };
 };
 
@@ -341,7 +352,11 @@ const runChildProcess = async (
 ): Promise<ChildProcessResult> =>
   new Promise((resolve, reject) => {
     const childProcess = spawn(command, args, {
-      stdio: ['pipe', options.stdout === 'inherit' ? 'inherit' : 'pipe', options.stderr === 'inherit' ? 'inherit' : 'pipe'],
+      stdio: [
+        'pipe',
+        options.stdout === 'inherit' ? 'inherit' : 'pipe',
+        options.stderr === 'inherit' ? 'inherit' : 'pipe',
+      ],
       env: process.env,
     });
 
@@ -379,7 +394,9 @@ const getConfiguredRemoteMetadataTypes = async (projectRoot: string): Promise<st
   const config = await getRavenPluginConfig(project);
   const metadataTypes = config.pullRemote?.metadataTypes;
 
-  return Array.isArray(metadataTypes) ? sortValues(metadataTypes.filter((metadataType): metadataType is string => typeof metadataType === 'string')) : undefined;
+  return Array.isArray(metadataTypes)
+    ? sortValues(metadataTypes.filter((metadataType): metadataType is string => typeof metadataType === 'string'))
+    : undefined;
 };
 
 const writeRemoteMetadataTypes = async (projectRoot: string, metadataTypes: string[]): Promise<void> => {
@@ -406,7 +423,11 @@ const getLocalMetadataTypes = (projectRoot: string): string[] => {
 };
 
 const getLocalMetadataNames = (projectRoot: string, metadataType: string): Set<string> =>
-  new Set(Array.from(getLocalMetadataFullNames(projectRoot, metadataType)).map((fullName) => formatMetadataName(metadataType, fullName)));
+  new Set(
+    Array.from(getLocalMetadataFullNames(projectRoot, metadataType)).map((fullName) =>
+      formatMetadataName(metadataType, fullName)
+    )
+  );
 
 const getLocalMetadataFullNames = (projectRoot: string, metadataType: string): Set<string> => {
   const localMetadataFullNames = new Set<string>();
@@ -433,7 +454,9 @@ const getLocalMetadataTypeCounts = (projectRoot: string): Map<string, number> =>
 const formatMetadataName = (metadataType: string, fullName: string): string => `${metadataType}:${fullName}`;
 
 export const getLocalMetadataComponents = (projectRoot: string): MetadataComponent[] => {
-  const sourcePaths = getExistingPackageDirectoryPaths(projectRoot).map((packageDirectoryPath) => join(projectRoot, packageDirectoryPath));
+  const sourcePaths = getExistingPackageDirectoryPaths(projectRoot).map((packageDirectoryPath) =>
+    join(projectRoot, packageDirectoryPath)
+  );
 
   if (sourcePaths.length === 0) {
     return [];
@@ -451,12 +474,15 @@ const getMetadataTypeName = (metadataType: MetadataTypeDescription): string | un
   metadataType.xmlName ?? metadataType.metadataType ?? metadataType.name ?? metadataType.type;
 
 const sortValues = (values: Iterable<string>): string[] =>
-  Array.from(new Set(Array.from(values).filter((value) => value.length > 0))).sort((left, right) => left.localeCompare(right));
+  Array.from(new Set(Array.from(values).filter((value) => value.length > 0))).sort((left, right) =>
+    left.localeCompare(right)
+  );
 
 export const getDefaultPackageDirectoryPath = (projectRoot: string): string => {
   const packageDirectories = getPackageDirectories(projectRoot);
 
-  return (packageDirectories.find((packageDirectory) => packageDirectory.default === true) ?? packageDirectories[0]).path;
+  return (packageDirectories.find((packageDirectory) => packageDirectory.default === true) ?? packageDirectories[0])
+    .path;
 };
 
 const getPackageDirectoryPaths = (projectRoot: string): string[] =>

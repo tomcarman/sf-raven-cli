@@ -1,6 +1,11 @@
 import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { getExistingPackageDirectoryPaths, getMetadataPaths, retrieveSourceDirs, selectItems } from '../../shared/pull.js';
+import {
+  getExistingPackageDirectoryPaths,
+  getMetadataPaths,
+  retrieveSourceDirs,
+  selectItems,
+} from '../../shared/pull.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.pull');
@@ -32,7 +37,9 @@ export default class RavenPull extends SfCommand<RavenPullResult> {
   public async run(): Promise<RavenPullResult> {
     const { flags } = await this.parse(RavenPull);
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
-    const sourceDirs = flags.all ? getExistingPackageDirectoryPaths(process.cwd()) : await selectLocalMetadata(process.cwd());
+    const sourceDirs = flags.all
+      ? getExistingPackageDirectoryPaths(process.cwd())
+      : await selectLocalMetadata(process.cwd());
 
     if (sourceDirs.length === 0) {
       ux.log(messages.getMessage('info.noSelection'));

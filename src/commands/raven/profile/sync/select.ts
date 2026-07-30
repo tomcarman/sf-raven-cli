@@ -74,7 +74,9 @@ export default class RavenProfileSyncSelect extends SfCommand<RavenProfileSyncSe
 }
 
 const selectProfiles = async (components: PullListComponent[]): Promise<string[]> => {
-  const namesByItem = new Map(components.map((component) => [`${component.name} (${component.status})`, component.name]));
+  const namesByItem = new Map(
+    components.map((component) => [`${component.name} (${component.status})`, component.name])
+  );
   const selectedItems = await selectItems(Array.from(namesByItem.keys()));
 
   return selectedItems.map((item) => namesByItem.get(item)).filter((name): name is string => name != null);

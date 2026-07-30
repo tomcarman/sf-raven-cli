@@ -1,6 +1,12 @@
 import { Messages } from '@salesforce/core';
 import { encode } from '@toon-format/toon';
-import { escapeCsvValue, getEncodedQueryLength, isPlainObject, isValidSalesforceId, maxEncodedQueryLength } from './query.js';
+import {
+  escapeCsvValue,
+  getEncodedQueryLength,
+  isPlainObject,
+  isValidSalesforceId,
+  maxEncodedQueryLength,
+} from './query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.query.record');
@@ -48,7 +54,10 @@ const shortIdLength = 15;
 const defaultTruncateWidth = 80;
 const columnGap = '  ';
 
-export const queryRecords = async (connection: RecordQueryConnection, options: RecordQueryOptions): Promise<RecordQueryResult> => {
+export const queryRecords = async (
+  connection: RecordQueryConnection,
+  options: RecordQueryOptions
+): Promise<RecordQueryResult> => {
   const idsRequested = parseRecordIds(options.recordIds);
   const { api, sobject, usedTooling } = await detectSObject(connection, idsRequested[0]);
   const fields = await buildFieldList(api, sobject, options);
@@ -95,11 +104,18 @@ export const formatRecordTable = (result: RecordQueryResult, options: RecordTabl
     ...result.records.map((record) => formatRecordCell(resolveFieldValue(record, field), truncate)),
   ]);
 
-  const widths = header.map((cell, columnIndex) => Math.max(cell.length, ...rows.map((row) => row[columnIndex].length)));
+  const widths = header.map((cell, columnIndex) =>
+    Math.max(cell.length, ...rows.map((row) => row[columnIndex].length))
+  );
   const divider = widths.map((width) => '-'.repeat(width));
 
   return [header, divider, ...rows]
-    .map((row) => row.map((cell, columnIndex) => cell.padEnd(widths[columnIndex])).join(columnGap).trimEnd())
+    .map((row) =>
+      row
+        .map((cell, columnIndex) => cell.padEnd(widths[columnIndex]))
+        .join(columnGap)
+        .trimEnd()
+    )
     .join('\n');
 };
 
@@ -185,11 +201,7 @@ const findSObjectByPrefix = async (api: RecordQueryApi, keyPrefix: string): Prom
   return describeGlobalResult.sobjects.find((candidate) => candidate.keyPrefix === keyPrefix)?.name;
 };
 
-const buildFieldList = async (
-  api: RecordQueryApi,
-  sobject: string,
-  options: RecordQueryOptions
-): Promise<string[]> => {
+const buildFieldList = async (api: RecordQueryApi, sobject: string, options: RecordQueryOptions): Promise<string[]> => {
   const describeResult = await api.describe(sobject);
 
   if (options.fields != null) {
@@ -268,7 +280,10 @@ export const buildFieldChunks = (fields: string[], buildSoql: (chunkFields: stri
   for (const field of remainingFields) {
     const candidateChunk = [...currentChunk, field];
 
-    if (currentChunk.length > 0 && getEncodedQueryLength(buildSoql([idField, ...candidateChunk])) > maxEncodedQueryLength) {
+    if (
+      currentChunk.length > 0 &&
+      getEncodedQueryLength(buildSoql([idField, ...candidateChunk])) > maxEncodedQueryLength
+    ) {
       chunks.push([idField, ...currentChunk]);
       currentChunk = [field];
     } else {
@@ -320,9 +335,7 @@ export const stripAttributes = (record: Record<string, unknown>): Record<string,
   );
 
 export const resolveFieldValue = (record: Record<string, unknown>, field: string): unknown =>
-  field
-    .split('.')
-    .reduce<unknown>((value, segment) => (isPlainObject(value) ? value[segment] : undefined), record);
+  field.split('.').reduce<unknown>((value, segment) => (isPlainObject(value) ? value[segment] : undefined), record);
 
 export const formatRecordCell = (value: unknown, truncate: number): string => {
   if (value == null) {

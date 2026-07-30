@@ -7,9 +7,7 @@ type PackageJson = {
   devDependencies?: Record<string, string>;
 };
 
-const packageJson = JSON.parse(
-  readFileSync(new URL('../package.json', import.meta.url), 'utf8')
-) as PackageJson;
+const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as PackageJson;
 
 describe('package metadata', () => {
   it('uses the renamed npm package', () => {

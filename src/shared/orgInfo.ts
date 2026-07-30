@@ -125,11 +125,7 @@ export type TrustStatusResponse = {
  * The Trust API returns past maintenance alongside future, so anything already
  * finished is dropped and the rest sorted soonest first.
  */
-export const parseTrustStatus = (
-  response: TrustStatusResponse,
-  now: Date = new Date(),
-  limit = 3
-): ReleaseInfo => ({
+export const parseTrustStatus = (response: TrustStatusResponse, now: Date = new Date(), limit = 3): ReleaseInfo => ({
   available: true,
   releaseVersion: response.releaseVersion ?? '',
   releaseNumber: response.releaseNumber ?? '',

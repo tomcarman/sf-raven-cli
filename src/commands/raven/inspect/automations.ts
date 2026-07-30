@@ -101,7 +101,7 @@ export default class RavenInspectAutomations extends SfCommand<RavenInspectAutom
     let workflowRules: WorkflowRuleRecord[] = [];
 
     try {
-      const activeOnlyTrigger = showAll ? '' : ' AND Status = \'Active\'';
+      const activeOnlyTrigger = showAll ? '' : " AND Status = 'Active'";
       const activeOnlyFlow = showAll ? '' : ' AND IsActive = true';
 
       type EntityResult = { records: Array<{ DurableId: string }> };
@@ -152,9 +152,11 @@ export default class RavenInspectAutomations extends SfCommand<RavenInspectAutom
       // WorkflowRule exposes triggerType/active only inside its Metadata compound field,
       // which the Tooling API returns only when querying a single record. So list the
       // rules, then fetch each rule's Metadata individually.
-      const ruleList = (await toolingConn.tooling.query<WorkflowRuleListRecord>(
-        `SELECT Id, Name FROM WorkflowRule WHERE TableEnumOrId = '${sobject}' ORDER BY Name`
-      )).records;
+      const ruleList = (
+        await toolingConn.tooling.query<WorkflowRuleListRecord>(
+          `SELECT Id, Name FROM WorkflowRule WHERE TableEnumOrId = '${sobject}' ORDER BY Name`
+        )
+      ).records;
 
       const ruleRecords = await Promise.all(
         ruleList.map(async (rule) => {
@@ -179,7 +181,9 @@ export default class RavenInspectAutomations extends SfCommand<RavenInspectAutom
       ...workflowRules.map(workflowToRow),
     ].sort(
       (a, b) =>
-        a.phaseOrder - b.phaseOrder || compareTriggerOrder(a.triggerOrder, b.triggerOrder) || a.name.localeCompare(b.name)
+        a.phaseOrder - b.phaseOrder ||
+        compareTriggerOrder(a.triggerOrder, b.triggerOrder) ||
+        a.name.localeCompare(b.name)
     );
 
     const activeCount = rows.filter((r) => r.active).length;
@@ -195,7 +199,9 @@ export default class RavenInspectAutomations extends SfCommand<RavenInspectAutom
     }
 
     // Flows without an explicit Trigger Order run in an unpredictable sequence
-    const hasUnorderedFlows = flows.some((flow) => flow.ProcessType === 'AutoLaunchedFlow' && flow.TriggerOrder == null);
+    const hasUnorderedFlows = flows.some(
+      (flow) => flow.ProcessType === 'AutoLaunchedFlow' && flow.TriggerOrder == null
+    );
 
     if (hasUnorderedFlows) {
       ux.log(`\n${messages.getMessage('info.unorderedFlows')}`);
@@ -221,11 +227,25 @@ const triggerToRows = (trigger: ApexTriggerRecord): AutomationRow[] => {
   if (trigger.UsageAfterUndelete) afterEvents.push('Undelete');
 
   if (beforeEvents.length > 0) {
-    rows.push({ phase: 'Before Trigger', phaseOrder: 2, type: 'Apex Trigger', name: trigger.Name, events: beforeEvents.join(', '), active });
+    rows.push({
+      phase: 'Before Trigger',
+      phaseOrder: 2,
+      type: 'Apex Trigger',
+      name: trigger.Name,
+      events: beforeEvents.join(', '),
+      active,
+    });
   }
 
   if (afterEvents.length > 0) {
-    rows.push({ phase: 'After Trigger', phaseOrder: 3, type: 'Apex Trigger', name: trigger.Name, events: afterEvents.join(', '), active });
+    rows.push({
+      phase: 'After Trigger',
+      phaseOrder: 3,
+      type: 'Apex Trigger',
+      name: trigger.Name,
+      events: afterEvents.join(', '),
+      active,
+    });
   }
 
   return rows;
@@ -236,7 +256,14 @@ const flowToRow = (flow: FlowWithOrder): AutomationRow => {
   const isBeforeSave = flow.TriggerType === 'RecordBeforeSave';
 
   if (isProcessBuilder) {
-    return { phase: 'Post-Save', phaseOrder: 6, type: 'Process Builder', name: flow.Label, events: formatFlowTriggerType(flow.RecordTriggerType), active: flow.IsActive };
+    return {
+      phase: 'Post-Save',
+      phaseOrder: 6,
+      type: 'Process Builder',
+      name: flow.Label,
+      events: formatFlowTriggerType(flow.RecordTriggerType),
+      active: flow.IsActive,
+    };
   }
 
   return {
@@ -270,26 +297,35 @@ const workflowToRow = (rule: WorkflowRuleRecord): AutomationRow => ({
 
 const formatFlowTriggerType = (recordTriggerType: string): string => {
   switch (recordTriggerType) {
-    case 'Create': return 'Insert';
-    case 'Update': return 'Update';
-    case 'CreateAndUpdate': return 'Insert, Update';
-    case 'Delete': return 'Delete';
-    default: return recordTriggerType ?? '';
+    case 'Create':
+      return 'Insert';
+    case 'Update':
+      return 'Update';
+    case 'CreateAndUpdate':
+      return 'Insert, Update';
+    case 'Delete':
+      return 'Delete';
+    default:
+      return recordTriggerType ?? '';
   }
 };
 
 const formatWorkflowTriggerType = (triggerType: string): string => {
   switch (triggerType) {
-    case 'onCreateOnly': return 'Insert';
-    case 'onCreateOrTriggeringUpdate': return 'Insert, Update';
-    case 'onAllChanges': return 'Insert, Update, Undelete';
-    case 'onOpportunityClose': return 'Close';
-    default: return triggerType ?? '';
+    case 'onCreateOnly':
+      return 'Insert';
+    case 'onCreateOrTriggeringUpdate':
+      return 'Insert, Update';
+    case 'onAllChanges':
+      return 'Insert, Update, Undelete';
+    case 'onOpportunityClose':
+      return 'Close';
+    default:
+      return triggerType ?? '';
   }
 };
 
-const cell = (row: AutomationRow, value: string): string =>
-  row.active ? value : chalk.dim(value);
+const cell = (row: AutomationRow, value: string): string => (row.active ? value : chalk.dim(value));
 
 const getTableColumns = (
   showAll: boolean

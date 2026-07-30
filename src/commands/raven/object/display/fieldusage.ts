@@ -135,7 +135,10 @@ export const sampleObject = async (
     fetchSample(connection, sobject, fields, sampleSize, hasCreatedDate),
   ]);
 
-  const counts = countPopulated(records, fields.map((field) => field.name));
+  const counts = countPopulated(
+    records,
+    fields.map((field) => field.name)
+  );
   const sampled = buildFieldUsage(fields, counts, records.length, 'sampled');
 
   if (!flags.deep) {
@@ -183,7 +186,13 @@ const deepenUsage = async (
 
     return populated == null
       ? usage
-      : { ...usage, populated, total: totalRecords, percent: toPercent(populated, totalRecords), method: 'deep' as const };
+      : {
+          ...usage,
+          populated,
+          total: totalRecords,
+          percent: toPercent(populated, totalRecords),
+          method: 'deep' as const,
+        };
   });
 };
 

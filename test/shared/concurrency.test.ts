@@ -12,14 +12,18 @@ describe('mapWithConcurrency', () => {
     let inFlight = 0;
     let peak = 0;
 
-    await mapWithConcurrency(Array.from({ length: 20 }, (_, index) => index), 5, async (value) => {
-      inFlight++;
-      peak = Math.max(peak, inFlight);
-      await new Promise((done) => setTimeout(done, 1));
-      inFlight--;
+    await mapWithConcurrency(
+      Array.from({ length: 20 }, (_, index) => index),
+      5,
+      async (value) => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise((done) => setTimeout(done, 1));
+        inFlight--;
 
-      return value;
-    });
+        return value;
+      }
+    );
 
     assert.equal(peak <= 5, true, `peak was ${peak}`);
   });

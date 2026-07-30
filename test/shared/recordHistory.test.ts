@@ -192,11 +192,9 @@ describe('record history', () => {
     });
 
     it('matches 18-character results against 15-character requests', () => {
-      const grouped = groupHistoryByRecord(
-        [{ ...historyRecord(), AccountId: '001aj00003BxWlZAAV' }],
-        'AccountId',
-        ['001aj00003BxWlZ']
-      );
+      const grouped = groupHistoryByRecord([{ ...historyRecord(), AccountId: '001aj00003BxWlZAAV' }], 'AccountId', [
+        '001aj00003BxWlZ',
+      ]);
 
       assert.equal(grouped['001aj00003BxWlZ'].length, 1);
     });

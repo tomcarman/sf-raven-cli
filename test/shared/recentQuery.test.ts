@@ -81,10 +81,7 @@ describe('recent query', () => {
     const options = { sobject: 'Account', fields: ['Id', 'Name'], sortField: 'CreatedDate', limit: 10 };
 
     it('sorts newest first and applies the limit', () => {
-      assert.equal(
-        buildRecentQuery(options),
-        'SELECT Id, Name FROM Account ORDER BY CreatedDate DESC LIMIT 10'
-      );
+      assert.equal(buildRecentQuery(options), 'SELECT Id, Name FROM Account ORDER BY CreatedDate DESC LIMIT 10');
     });
 
     it('filters on the record type developer name when asked', () => {

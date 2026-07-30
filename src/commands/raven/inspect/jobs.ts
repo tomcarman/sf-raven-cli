@@ -106,7 +106,9 @@ export default class InspectJobs extends SfCommand<InspectJobsResult> {
 
       return {
         asyncJobs: async.records.map(toAsyncJob),
-        scheduledJobs: scheduled.records.map((record) => toScheduledJob(record, describeSchedule)).sort(compareByNextRun),
+        scheduledJobs: scheduled.records
+          .map((record) => toScheduledJob(record, describeSchedule))
+          .sort(compareByNextRun),
       };
     } finally {
       this.spinner.stop();

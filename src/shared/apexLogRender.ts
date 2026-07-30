@@ -29,13 +29,18 @@ export const parseLogLines = (body: string, filter?: string): string[] => {
 export const formatLevel = (level: string): string => {
   const padded = level.padEnd(7);
   switch (level) {
-    case 'ERROR':  return chalk.red.bold(padded);
-    case 'WARN':   return chalk.yellow(padded);
-    case 'INFO':   return chalk.cyan(padded);
+    case 'ERROR':
+      return chalk.red.bold(padded);
+    case 'WARN':
+      return chalk.yellow(padded);
+    case 'INFO':
+      return chalk.cyan(padded);
     case 'FINE':
     case 'FINER':
-    case 'FINEST': return chalk.dim(padded);
-    default:       return chalk.dim(padded); // DEBUG
+    case 'FINEST':
+      return chalk.dim(padded);
+    default:
+      return chalk.dim(padded); // DEBUG
   }
 };
 
@@ -49,5 +54,7 @@ export const formatLogHeader = (
   const op = operation ?? 'Log';
   const durationStr = duration != null ? `  ${duration}ms` : '';
   const failed = status != null && status !== 'Success' ? ' ' + chalk.red.bold(`[${status}]`) : '';
-  return `\n${chalk.dim('──')} ${chalk.bold.cyan(op)}  ${chalk.dim(`${time}${durationStr}`)}${failed} ${chalk.dim('──')}`;
+  return `\n${chalk.dim('──')} ${chalk.bold.cyan(op)}  ${chalk.dim(`${time}${durationStr}`)}${failed} ${chalk.dim(
+    '──'
+  )}`;
 };

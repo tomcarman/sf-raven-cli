@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { syncProfiles, type ProfileMetadata } from '../../src/shared/profileSync.js';
 
-const staleProfileXml = '<?xml version="1.0" encoding="UTF-8"?>\n<Profile xmlns="http://soap.sforce.com/2006/04/metadata">\n    <custom>true</custom>\n</Profile>\n';
+const staleProfileXml =
+  '<?xml version="1.0" encoding="UTF-8"?>\n<Profile xmlns="http://soap.sforce.com/2006/04/metadata">\n    <custom>true</custom>\n</Profile>\n';
 
 const objectXml =
   '<?xml version="1.0" encoding="UTF-8"?>\n<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">\n    <label>Widget</label>\n</CustomObject>\n';
@@ -18,7 +19,11 @@ type ProjectOptions = {
   defaultPackageDirectory?: 'force-app' | 'other-app';
 };
 
-const createProject = ({ profiles = ['Admin'], otherPackageProfiles = [], defaultPackageDirectory = 'force-app' }: ProjectOptions = {}): string => {
+const createProject = ({
+  profiles = ['Admin'],
+  otherPackageProfiles = [],
+  defaultPackageDirectory = 'force-app',
+}: ProjectOptions = {}): string => {
   const projectRoot = mkdtempSync(join(tmpdir(), 'sf-raven-profile-sync-test-'));
 
   const includeOtherPackage = otherPackageProfiles.length > 0 || defaultPackageDirectory === 'other-app';
@@ -26,7 +31,10 @@ const createProject = ({ profiles = ['Admin'], otherPackageProfiles = [], defaul
     { path: 'force-app', default: defaultPackageDirectory === 'force-app' },
     ...(includeOtherPackage ? [{ path: 'other-app', default: defaultPackageDirectory === 'other-app' }] : []),
   ];
-  writeFileSync(join(projectRoot, 'sfdx-project.json'), JSON.stringify({ packageDirectories, sourceApiVersion: '61.0' }, null, 2));
+  writeFileSync(
+    join(projectRoot, 'sfdx-project.json'),
+    JSON.stringify({ packageDirectories, sourceApiVersion: '61.0' }, null, 2)
+  );
 
   const defaultDir = join(projectRoot, 'force-app', 'main', 'default');
   const profilesDir = join(defaultDir, 'profiles');
@@ -63,10 +71,7 @@ const createProject = ({ profiles = ['Admin'], otherPackageProfiles = [], defaul
   return projectRoot;
 };
 
-const readerFor =
-  (profiles: ProfileMetadata[]) =>
-  (): Promise<ProfileMetadata[]> =>
-    Promise.resolve(profiles);
+const readerFor = (profiles: ProfileMetadata[]) => (): Promise<ProfileMetadata[]> => Promise.resolve(profiles);
 
 describe('profile sync', () => {
   const projectRoots: string[] = [];
@@ -119,7 +124,10 @@ describe('profile sync', () => {
       '',
     ].join('\n');
 
-    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), 'utf8'), expected);
+    assert.equal(
+      readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), 'utf8'),
+      expected
+    );
   });
 
   it('keeps entries for tracked components (including negatives) and drops org-only entries', async () => {
@@ -200,7 +208,10 @@ describe('profile sync', () => {
       '',
     ].join('\n');
 
-    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), 'utf8'), expected);
+    assert.equal(
+      readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), 'utf8'),
+      expected
+    );
   });
 
   it('requests the named profiles from the injected reader and reports the synced file', async () => {
@@ -231,7 +242,9 @@ describe('profile sync', () => {
   });
 
   it('syncs every locally tracked profile in place when no names are given, including non-default package directories', async () => {
-    const projectRoot = trackProject(createProject({ profiles: ['Admin', 'Support'], otherPackageProfiles: ['Marketing'] }));
+    const projectRoot = trackProject(
+      createProject({ profiles: ['Admin', 'Support'], otherPackageProfiles: ['Marketing'] })
+    );
     const requestedNames: string[][] = [];
     const readProfiles = (profileNames: string[]): Promise<ProfileMetadata[]> => {
       requestedNames.push(profileNames);
@@ -244,9 +257,21 @@ describe('profile sync', () => {
     const customModified = { changed: true, changes: [{ section: 'custom', added: 0, removed: 0, modified: 1 }] };
     assert.deepEqual(result, {
       synced: [
-        { name: 'Admin', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), ...customModified },
-        { name: 'Marketing', path: join(projectRoot, 'other-app', 'main', 'default', 'profiles', 'Marketing.profile-meta.xml'), ...customModified },
-        { name: 'Support', path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml'), ...customModified },
+        {
+          name: 'Admin',
+          path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+          ...customModified,
+        },
+        {
+          name: 'Marketing',
+          path: join(projectRoot, 'other-app', 'main', 'default', 'profiles', 'Marketing.profile-meta.xml'),
+          ...customModified,
+        },
+        {
+          name: 'Support',
+          path: join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml'),
+          ...customModified,
+        },
       ],
       skipped: [],
       failed: [],
@@ -274,7 +299,10 @@ describe('profile sync', () => {
       result.synced.map((profile) => profile.name),
       ['Sales', 'Admin']
     );
-    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml'), 'utf8'), staleProfileXml);
+    assert.equal(
+      readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Support.profile-meta.xml'), 'utf8'),
+      staleProfileXml
+    );
   });
 
   it('fetches more than 10 profiles in parallel batches of at most 10', async () => {
@@ -324,7 +352,10 @@ describe('profile sync', () => {
     );
     assert.deepEqual(result.skipped, [{ name: 'Ghost' }]);
     assert.deepEqual(result.failed, []);
-    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Ghost.profile-meta.xml'), 'utf8'), staleProfileXml);
+    assert.equal(
+      readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Ghost.profile-meta.xml'), 'utf8'),
+      staleProfileXml
+    );
   });
 
   it('records a failed batch per profile and still syncs the other batches', async () => {
@@ -345,7 +376,10 @@ describe('profile sync', () => {
       result.failed,
       profileNames.slice(0, 10).map((name) => ({ name, error: 'read timed out' }))
     );
-    assert.equal(readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Profile00.profile-meta.xml'), 'utf8'), staleProfileXml);
+    assert.equal(
+      readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Profile00.profile-meta.xml'), 'utf8'),
+      staleProfileXml
+    );
   });
 
   it('summarises entries added, removed, and modified per section when syncing', async () => {
@@ -375,7 +409,10 @@ describe('profile sync', () => {
       '</Profile>',
       '',
     ].join('\n');
-    writeFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), oldProfileXml);
+    writeFileSync(
+      join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+      oldProfileXml
+    );
 
     const orgProfile: ProfileMetadata = {
       fullName: 'Admin',
@@ -438,7 +475,11 @@ describe('profile sync', () => {
       '<?xml version="1.0" encoding="UTF-8"?>\n<Profile xmlns="http://soap.sforce.com/2006/04/metadata">\n  <custom>true</custom>\n</Profile>\n'
     );
 
-    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([{ fullName: 'Admin', custom: 'true' }]) });
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin'],
+      readProfiles: readerFor([{ fullName: 'Admin', custom: 'true' }]),
+    });
 
     assert.deepEqual(result.synced, [{ name: 'Admin', path: profilePath, changed: true, changes: [] }]);
     assert.equal(result.drifted, true);
@@ -451,7 +492,12 @@ describe('profile sync', () => {
     chmodSync(profilePath, 0o444);
     const orgProfile: ProfileMetadata = { fullName: 'Admin', custom: 'false' };
 
-    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]), dryRun: true });
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin'],
+      readProfiles: readerFor([orgProfile]),
+      dryRun: true,
+    });
 
     assert.deepEqual(result, {
       synced: [
@@ -475,7 +521,12 @@ describe('profile sync', () => {
     const orgProfile: ProfileMetadata = { fullName: 'Admin', custom: 'true' };
     await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]) });
 
-    const result = await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]), dryRun: true });
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin'],
+      readProfiles: readerFor([orgProfile]),
+      dryRun: true,
+    });
 
     assert.equal(result.drifted, false);
     assert.equal(result.dryRun, true);
@@ -501,7 +552,12 @@ describe('profile sync', () => {
       userLicense: 'Salesforce',
     };
 
-    const result = await syncProfiles({ projectRoot, profileNames: ['Read Only'], readProfiles: readerFor([orgProfile]), adoptUntracked: true });
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Read Only'],
+      readProfiles: readerFor([orgProfile]),
+      adoptUntracked: true,
+    });
 
     const adoptedPath = join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml');
     assert.deepEqual(result, {
@@ -556,7 +612,11 @@ describe('profile sync', () => {
       userPermissions: [{ name: 'ApiEnabled', enabled: 'true' }],
     };
 
-    await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([{ ...sections, fullName: 'Admin' }]) });
+    await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin'],
+      readProfiles: readerFor([{ ...sections, fullName: 'Admin' }]),
+    });
     await syncProfiles({
       projectRoot,
       profileNames: ['Read Only'],
@@ -564,8 +624,14 @@ describe('profile sync', () => {
       adoptUntracked: true,
     });
 
-    const syncedContent = readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'), 'utf8');
-    const adoptedContent = readFileSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml'), 'utf8');
+    const syncedContent = readFileSync(
+      join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+      'utf8'
+    );
+    const adoptedContent = readFileSync(
+      join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml'),
+      'utf8'
+    );
     assert.equal(adoptedContent, syncedContent);
   });
 
@@ -574,7 +640,12 @@ describe('profile sync', () => {
     const readProfiles = (profileNames: string[]): Promise<ProfileMetadata[]> =>
       Promise.resolve(profileNames.map((name) => ({ fullName: name, custom: 'false' })));
 
-    const result = await syncProfiles({ projectRoot, profileNames: ['Admin', 'Read Only'], readProfiles, adoptUntracked: true });
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin', 'Read Only'],
+      readProfiles,
+      adoptUntracked: true,
+    });
 
     assert.deepEqual(result.synced, [
       {
@@ -648,7 +719,10 @@ describe('profile sync', () => {
       result.synced.map((profile) => ({ name: profile.name, changed: profile.changed, adopted: profile.adopted })),
       [{ name: 'Read Only', changed: true, adopted: true }]
     );
-    assert.equal(existsSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml')), false);
+    assert.equal(
+      existsSync(join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Read Only.profile-meta.xml')),
+      false
+    );
   });
 
   it('rejects a profile that is not tracked in local source without touching the org', async () => {
@@ -664,5 +738,4 @@ describe('profile sync', () => {
     });
     assert.equal(readerCalled, false);
   });
-
 });

@@ -84,11 +84,7 @@ export default class OrgInfo extends SfCommand<OrgInfoResult> {
   }
 }
 
-const buildIdentity = (
-  organization: OrganizationRecord,
-  instanceUrl: string,
-  apiVersion: string
-): OrgIdentity => ({
+const buildIdentity = (organization: OrganizationRecord, instanceUrl: string, apiVersion: string): OrgIdentity => ({
   name: organization.Name,
   orgId: organization.Id,
   edition: organization.OrganizationType,
@@ -208,7 +204,11 @@ const printCard = (ux: Ux, result: OrgInfoResult): void => {
   }
 
   for (const [index, maintenance] of result.release.maintenances.entries()) {
-    row(ux, index === 0 ? messages.getMessage('label.maintenance') : '', `${formatMaintenanceWindow(maintenance)}  ${chalk.dim(maintenance.name)}`);
+    row(
+      ux,
+      index === 0 ? messages.getMessage('label.maintenance') : '',
+      `${formatMaintenanceWindow(maintenance)}  ${chalk.dim(maintenance.name)}`
+    );
   }
 };
 

@@ -174,8 +174,21 @@ const writeCsv = (filePath: string, records: FieldRecord[], includeObjectColumn:
     columns.map(escapeCsvValue).join(','),
     ...records.map((record) =>
       (includeObjectColumn
-        ? [record.EntityDefinition.QualifiedApiName, record.Label, record.QualifiedApiName, record.DataType, record.IsNillable ? 'false' : 'true', record.Description ?? '']
-        : [record.Label, record.QualifiedApiName, record.DataType, record.IsNillable ? 'false' : 'true', record.Description ?? '']
+        ? [
+            record.EntityDefinition.QualifiedApiName,
+            record.Label,
+            record.QualifiedApiName,
+            record.DataType,
+            record.IsNillable ? 'false' : 'true',
+            record.Description ?? '',
+          ]
+        : [
+            record.Label,
+            record.QualifiedApiName,
+            record.DataType,
+            record.IsNillable ? 'false' : 'true',
+            record.Description ?? '',
+          ]
       )
         .map(escapeCsvValue)
         .join(',')

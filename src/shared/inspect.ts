@@ -71,27 +71,39 @@ export const resolveComponentId = async (
 ): Promise<string> => {
   switch (type) {
     case 'ApexClass': {
-      const result = await connection.tooling.query<IdRecord>(`SELECT Id FROM ApexClass WHERE Name = '${name}' LIMIT 1`);
+      const result = await connection.tooling.query<IdRecord>(
+        `SELECT Id FROM ApexClass WHERE Name = '${name}' LIMIT 1`
+      );
       return requireId(result.records[0]?.Id, type, name);
     }
     case 'ApexTrigger': {
-      const result = await connection.tooling.query<IdRecord>(`SELECT Id FROM ApexTrigger WHERE Name = '${name}' LIMIT 1`);
+      const result = await connection.tooling.query<IdRecord>(
+        `SELECT Id FROM ApexTrigger WHERE Name = '${name}' LIMIT 1`
+      );
       return requireId(result.records[0]?.Id, type, name);
     }
     case 'LightningComponentBundle': {
-      const result = await connection.tooling.query<IdRecord>(`SELECT Id FROM LightningComponentBundle WHERE ApiName = '${name}' LIMIT 1`);
+      const result = await connection.tooling.query<IdRecord>(
+        `SELECT Id FROM LightningComponentBundle WHERE ApiName = '${name}' LIMIT 1`
+      );
       return requireId(result.records[0]?.Id, type, name);
     }
     case 'AuraDefinitionBundle': {
-      const result = await connection.tooling.query<IdRecord>(`SELECT Id FROM AuraDefinitionBundle WHERE ApiName = '${name}' LIMIT 1`);
+      const result = await connection.tooling.query<IdRecord>(
+        `SELECT Id FROM AuraDefinitionBundle WHERE ApiName = '${name}' LIMIT 1`
+      );
       return requireId(result.records[0]?.Id, type, name);
     }
     case 'Flow': {
-      const result = await connection.query<IdRecord>(`SELECT Id FROM FlowDefinitionView WHERE ApiName = '${name}' AND IsActive = true LIMIT 1`);
+      const result = await connection.query<IdRecord>(
+        `SELECT Id FROM FlowDefinitionView WHERE ApiName = '${name}' AND IsActive = true LIMIT 1`
+      );
       return requireId(result.records[0]?.Id, type, name);
     }
     case 'CustomObject': {
-      const result = await connection.query<DurableIdRecord>(`SELECT DurableId FROM EntityDefinition WHERE QualifiedApiName = '${name}' LIMIT 1`);
+      const result = await connection.query<DurableIdRecord>(
+        `SELECT DurableId FROM EntityDefinition WHERE QualifiedApiName = '${name}' LIMIT 1`
+      );
       return requireId(result.records[0]?.DurableId, type, name);
     }
     case 'CustomField': {
@@ -136,11 +148,19 @@ export const queryDependencies = async (
   const [outboundResult, inboundResult] = await Promise.all([outboundQuery, inboundQuery]);
   const outbound = await enrichDependencyRefs(
     connection,
-    outboundResult.records.map((r) => ({ id: r.RefMetadataComponentId, name: r.RefMetadataComponentName, type: r.RefMetadataComponentType }))
+    outboundResult.records.map((r) => ({
+      id: r.RefMetadataComponentId,
+      name: r.RefMetadataComponentName,
+      type: r.RefMetadataComponentType,
+    }))
   );
   const inbound = await enrichDependencyRefs(
     connection,
-    inboundResult.records.map((r) => ({ id: r.MetadataComponentId, name: r.MetadataComponentName, type: r.MetadataComponentType }))
+    inboundResult.records.map((r) => ({
+      id: r.MetadataComponentId,
+      name: r.MetadataComponentName,
+      type: r.MetadataComponentType,
+    }))
   );
 
   return {
@@ -149,17 +169,18 @@ export const queryDependencies = async (
   };
 };
 
-export const queryInboundOnly = async (
-  connection: ToolingInspectConnection,
-  id: string
-): Promise<DependencyRef[]> => {
+export const queryInboundOnly = async (connection: ToolingInspectConnection, id: string): Promise<DependencyRef[]> => {
   const result = await connection.tooling.query<DependencyRecord>(
     `SELECT MetadataComponentId, MetadataComponentName, MetadataComponentType FROM MetadataComponentDependency WHERE RefMetadataComponentId = '${id}' ORDER BY MetadataComponentType, MetadataComponentName`
   );
 
   const refs = await enrichDependencyRefs(
     connection,
-    result.records.map((r) => ({ id: r.MetadataComponentId, name: r.MetadataComponentName, type: r.MetadataComponentType }))
+    result.records.map((r) => ({
+      id: r.MetadataComponentId,
+      name: r.MetadataComponentName,
+      type: r.MetadataComponentType,
+    }))
   );
 
   return dedupe(refs);
@@ -188,7 +209,10 @@ const enrichDependencyRefs = async (
   connection: ToolingInspectConnection,
   refs: RawDependencyRef[]
 ): Promise<DependencyRef[]> => {
-  const [customFieldNames, activeFlowNames] = await Promise.all([queryCustomFieldNames(connection, refs), queryActiveFlowNames(connection, refs)]);
+  const [customFieldNames, activeFlowNames] = await Promise.all([
+    queryCustomFieldNames(connection, refs),
+    queryActiveFlowNames(connection, refs),
+  ]);
 
   return refs.map((ref) => {
     if (ref.type === 'CustomField' && ref.id != null) {
@@ -208,20 +232,28 @@ const queryCustomFieldNames = async (
   connection: ToolingInspectConnection,
   refs: RawDependencyRef[]
 ): Promise<Map<string, string>> => {
-  const ids = unique(refs.filter((ref) => ref.type === 'CustomField').map((ref) => ref.id).filter(isPresent));
+  const ids = unique(
+    refs
+      .filter((ref) => ref.type === 'CustomField')
+      .map((ref) => ref.id)
+      .filter(isPresent)
+  );
 
   if (ids.length === 0) {
     return new Map<string, string>();
   }
 
   const result = await connection.tooling.query<CustomFieldMetadataRecord>(
-    `SELECT Id, DeveloperName, EntityDefinition.QualifiedApiName FROM CustomField WHERE Id IN (${toSoqlStringList(ids)})`
+    `SELECT Id, DeveloperName, EntityDefinition.QualifiedApiName FROM CustomField WHERE Id IN (${toSoqlStringList(
+      ids
+    )})`
   );
 
   return new Map(
     result.records
       .map((record): [string, string] | undefined => {
-        const objectApiName = record.EntityDefinition?.QualifiedApiName ?? getFlatString(record, 'EntityDefinition.QualifiedApiName');
+        const objectApiName =
+          record.EntityDefinition?.QualifiedApiName ?? getFlatString(record, 'EntityDefinition.QualifiedApiName');
 
         if (objectApiName == null) {
           return undefined;
@@ -245,10 +277,14 @@ const queryActiveFlowNames = async (
   }
 
   const result = await connection.query<FlowDefinitionViewRecord>(
-    `SELECT ApiName, ActiveVersionId FROM FlowDefinitionView WHERE ApiName IN (${toSoqlStringList(flowNames)}) AND IsActive = true`
+    `SELECT ApiName, ActiveVersionId FROM FlowDefinitionView WHERE ApiName IN (${toSoqlStringList(
+      flowNames
+    )}) AND IsActive = true`
   );
 
-  return new Map(result.records.filter((record) => record.ActiveVersionId != null).map((record) => [record.ApiName, record.ApiName]));
+  return new Map(
+    result.records.filter((record) => record.ActiveVersionId != null).map((record) => [record.ApiName, record.ApiName])
+  );
 };
 
 const flowApiName = (name: string): string => name.replace(/-\d+$/, '');
@@ -325,7 +361,8 @@ export const deepSearchReferences = async (
  * from a filename (e.g. "My_Flow_After_Save"). Both reduce to the same lowercase
  * alphanumeric string.
  */
-export const canonicalRefKey = (type: string, name: string): string => `${type}:${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+export const canonicalRefKey = (type: string, name: string): string =>
+  `${type}:${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
 const tokenMatcher = (value: string): RegExp => new RegExp(`(?<![A-Za-z0-9_])${escapeRegex(value)}(?![A-Za-z0-9_])`);
 
