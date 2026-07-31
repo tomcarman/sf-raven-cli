@@ -54,6 +54,8 @@ const soqlKeywords = [
   'DESC',
   'NULLS FIRST',
   'NULLS LAST',
+  'FIRST',
+  'LAST',
   'TRUE',
   'FALSE',
   'NULL',
@@ -73,6 +75,9 @@ type ScanState = { words: ScanWord[]; parens: ScanParen[]; strings: ScanString[]
 
 const wordChar = /[A-Za-z0-9_]/;
 const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** A valid sObject API name - shared by meta-command parsing and the cache. */
+export const sobjectNamePattern = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 /**
  * Splits the input into word tokens tagged with their paren depth, plus the
@@ -284,7 +289,14 @@ export type SoqlCompletionContext =
   | { kind: 'by'; fragment: string }
   | { kind: 'object'; fragment: string }
   | { kind: 'childRelationship'; fragment: string; parentChain?: string[] }
-  | { kind: 'field'; fragment: string; chain?: string[]; path: string[]; clause: SoqlFieldClause; grouped?: boolean }
+  | {
+      kind: 'field';
+      fragment: string;
+      chain?: string[];
+      path: string[];
+      clause: SoqlFieldClause;
+      insideFunction?: boolean;
+    }
   | { kind: 'picklist'; fragment: string; chain?: string[]; path: string[]; quoted: boolean; inList: boolean }
   | { kind: 'none'; fragment: string };
 
@@ -454,7 +466,7 @@ const byClauseContext = (site: CursorSite, clauseIndex: number): SoqlCompletionC
   return { kind: 'keyword', fragment: site.fragment };
 };
 
-const clauseContext = (site: CursorSite, grouped: boolean): SoqlCompletionContext => {
+const clauseContext = (site: CursorSite, insideFunction: boolean): SoqlCompletionContext => {
   const clause = lastClauseWord(site.preceding);
 
   if (clause == null) {
@@ -469,7 +481,7 @@ const clauseContext = (site: CursorSite, grouped: boolean): SoqlCompletionContex
         chain: siteChain(site),
         path: site.path,
         clause: 'select',
-        grouped,
+        insideFunction,
       };
     case 'FROM':
       return fromClauseContext(site, clause.index);
@@ -522,11 +534,11 @@ export const classifySoqlContext = (before: string, full: string): SoqlCompletio
   const preceding = scopeWords(state, scope, full.length).filter((word) => word.end <= tokenStart);
 
   // Inside a function call's parens (COUNT(, FORMAT(, ...) only fields fit.
-  const grouped = stack.length > 0 && stack[stack.length - 1] !== scope;
+  const insideFunction = stack.length > 0 && stack[stack.length - 1] !== scope;
 
   return clauseContext(
     { before, full, state, subqueryStack, scopeIndex, fragment, path, tokenStart, preceding },
-    grouped
+    insideFunction
   );
 };
 
@@ -657,7 +669,7 @@ const fieldContextCandidates = (
   // After a dot or inside a select-list function call only fields make
   // sense; elsewhere the keywords that could follow stay on offer even while
   // describes are still loading.
-  if (context.path.length > 0 || context.grouped === true) {
+  if (context.path.length > 0 || context.insideFunction === true) {
     return fields;
   }
 

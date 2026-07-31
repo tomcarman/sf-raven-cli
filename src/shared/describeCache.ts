@@ -1,6 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { CompletionObject, SoqlCompletionSource } from './soqlComplete.js';
+import { sobjectNamePattern, type CompletionObject, type SoqlCompletionSource } from './soqlComplete.js';
 
 /**
  * Describe data for SOQL completion, cached in memory for the session and on
@@ -58,6 +58,16 @@ export const describeClients = (
 
 type Source = 'regular' | 'tooling';
 
+const globalFileNames: Readonly<Record<Source, string>> = {
+  regular: 'global.json',
+  tooling: 'tooling-global.json',
+};
+
+const objectDirNames: Readonly<Record<Source, string>> = {
+  regular: 'sobjects',
+  tooling: 'tooling',
+};
+
 type Envelope<T> = { fetchedAt: number; data: T };
 
 /** Raw describes are megabytes; only what completion reads goes to disk. */
@@ -76,20 +86,15 @@ const slimObject = (raw: RawObjectDescribe): CompletionObject => ({
     .map((entry) => ({ relationshipName: entry.relationshipName as string, childSObject: entry.childSObject })),
 });
 
-/** Object names become cache file names, so anything unusual stays uncached. */
-const safeNamePattern = /^[A-Za-z][A-Za-z0-9_]*$/;
-
 export type DescribeCacheOptions = {
   directory: string;
   regular: DescribeClient;
   tooling: DescribeClient;
   now?: () => number;
-  ttlMs?: number;
 };
 
 export class DescribeCache implements SoqlCompletionSource {
   private readonly now: () => number;
-  private readonly ttlMs: number;
   private toolingPreferred = false;
   private globals = new Map<Source, Map<string, string>>();
   private globalsSettled = false;
@@ -99,7 +104,6 @@ export class DescribeCache implements SoqlCompletionSource {
 
   public constructor(private readonly options: DescribeCacheOptions) {
     this.now = options.now ?? Date.now;
-    this.ttlMs = options.ttlMs ?? describeCacheTtlMs;
   }
 
   /** `\tooling on` flips which API wins object-name conflicts. */
@@ -147,12 +151,18 @@ export class DescribeCache implements SoqlCompletionSource {
 
   /**
    * Loads one object describe (memory, then fresh disk, then API), deduping
-   * concurrent requests. Resolves undefined on any failure.
+   * concurrent requests. Resolves undefined on any failure. Waits for the
+   * globals first, so an early request still caches under the canonical name
+   * and the right API.
    */
   public async loadObject(name: string): Promise<CompletionObject | undefined> {
+    if (!this.globalsSettled) {
+      await this.warm();
+    }
+
     const { source, canonical } = this.locate(name);
 
-    if (!safeNamePattern.test(canonical)) {
+    if (!sobjectNamePattern.test(canonical)) {
       return undefined;
     }
 
@@ -226,8 +236,12 @@ export class DescribeCache implements SoqlCompletionSource {
     this.globalsSettled = true;
   }
 
+  private clientFor(source: Source): DescribeClient {
+    return source === 'regular' ? this.options.regular : this.options.tooling;
+  }
+
   private async loadGlobal(source: Source): Promise<void> {
-    const file = join(this.options.directory, source === 'regular' ? 'global.json' : 'tooling-global.json');
+    const file = join(this.options.directory, globalFileNames[source]);
     const cached = await this.readEnvelope<GlobalEntry[]>(file);
 
     if (cached != null) {
@@ -237,8 +251,10 @@ export class DescribeCache implements SoqlCompletionSource {
     }
 
     try {
-      const client = source === 'regular' ? this.options.regular : this.options.tooling;
-      const entries = (await client.describeGlobal()).sobjects.map(({ name, queryable }) => ({ name, queryable }));
+      const entries = (await this.clientFor(source).describeGlobal()).sobjects.map(({ name, queryable }) => ({
+        name,
+        queryable,
+      }));
 
       this.globals.set(source, toNameIndex(entries));
       await this.writeEnvelope(file, entries);
@@ -248,7 +264,7 @@ export class DescribeCache implements SoqlCompletionSource {
   }
 
   private async fetchObject(source: Source, canonical: string, key: string): Promise<CompletionObject | undefined> {
-    const file = join(this.options.directory, source === 'regular' ? 'sobjects' : 'tooling', `${canonical}.json`);
+    const file = join(this.options.directory, objectDirNames[source], `${canonical}.json`);
     const cached = await this.readEnvelope<CompletionObject>(file);
 
     if (cached != null) {
@@ -258,8 +274,7 @@ export class DescribeCache implements SoqlCompletionSource {
     }
 
     try {
-      const client = source === 'regular' ? this.options.regular : this.options.tooling;
-      const object = slimObject(await client.describeSObject(canonical));
+      const object = slimObject(await this.clientFor(source).describeSObject(canonical));
 
       this.objects.set(key, object);
       await this.writeEnvelope(file, object);
@@ -274,7 +289,7 @@ export class DescribeCache implements SoqlCompletionSource {
     try {
       const envelope = JSON.parse(await readFile(file, 'utf8')) as Envelope<T>;
 
-      if (typeof envelope.fetchedAt !== 'number' || this.now() - envelope.fetchedAt > this.ttlMs) {
+      if (typeof envelope.fetchedAt !== 'number' || this.now() - envelope.fetchedAt > describeCacheTtlMs) {
         return undefined;
       }
 

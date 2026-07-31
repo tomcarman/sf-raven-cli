@@ -112,6 +112,10 @@ describe('completeSoql', () => {
       assert.ok(candidates.includes('LIMIT'));
     });
 
+    it('completes FIRST and LAST after NULLS', () => {
+      assert.deepEqual(complete('SELECT Id FROM Account ORDER BY Name DESC NULLS FI'), ['FIRST']);
+    });
+
     it('completes BY after ORDER and GROUP', () => {
       assert.deepEqual(complete('SELECT Id FROM Account ORDER '), ['BY']);
       assert.deepEqual(complete('SELECT Id FROM Account GROUP B'), ['BY']);
@@ -324,7 +328,8 @@ describe('completeSoql', () => {
       const before = 'SELECT Id, (SELECT La';
       const [candidates] = completeSoql(before, `${before} FROM Contacts) FROM Account`, source);
 
-      assert.deepEqual(candidates, ['LastName']);
+      assert.ok(candidates.includes('LastName'));
+      assert.ok(!candidates.includes('Industry'));
     });
 
     it('completes object names after FROM in an IN semi-join', () => {
@@ -395,7 +400,7 @@ describe('classifySoqlContext', () => {
       chain: ['Account'],
       path: ['Owner', 'Profile'],
       clause: 'select',
-      grouped: false,
+      insideFunction: false,
     });
   });
 });

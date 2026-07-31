@@ -176,6 +176,15 @@ describe('DescribeCache', () => {
     assert.deepEqual(loaded.childRelationships, [{ relationshipName: 'Contacts', childSObject: 'Contact' }]);
   });
 
+  it('waits for the globals before locating an object requested pre-warm-up', async () => {
+    const regular = makeClient([{ name: 'Account' }], { Account: accountDescribe });
+    const cache = new DescribeCache({ directory, regular, tooling: makeClient([]) });
+
+    assert.equal((await cache.loadObject('account'))?.name, 'Account');
+    assert.deepEqual(regular.objectCalls(), ['Account']);
+    assert.deepEqual(await readdir(join(directory, 'sobjects')), ['Account.json']);
+  });
+
   it('resolves objects case-insensitively to their canonical name', async () => {
     const regular = makeClient([{ name: 'Account' }], { Account: accountDescribe });
     const cache = new DescribeCache({ directory, regular, tooling: makeClient([]) });

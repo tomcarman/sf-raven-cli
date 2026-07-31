@@ -1,5 +1,6 @@
 import { Messages } from '@salesforce/core';
 import { formatRecordCell, recordFormats, resolveFieldValue, type RecordFormat } from './recordQuery.js';
+import { sobjectNamePattern } from './soqlComplete.js';
 import { renderTable, type TableColumn } from './table.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -490,7 +491,6 @@ export type SoqlMetaCommand =
   | { type: 'invalid'; message: string };
 
 const toolingModes: readonly SoqlToolingMode[] = ['auto', 'on', 'off'];
-const sobjectNamePattern = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 const invalid = (message: string): SoqlMetaCommand => ({ type: 'invalid', message });
 
