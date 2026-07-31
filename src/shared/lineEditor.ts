@@ -82,6 +82,24 @@ const sanitizeInsert = (data: string): string =>
   // eslint-disable-next-line no-control-regex
   data.replace(/\t/g, ' ').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
 
+/** The completion menu shows at most this many rows; longer lists scroll. */
+const menuMaxVisible = 10;
+
+const inverseOn = '\u001b[7m';
+const inverseOff = '\u001b[27m';
+
+/**
+ * The open completion menu. `candidates` is the list captured at the Tab
+ * press; typing afterwards narrows the view live by re-matching the fragment,
+ * which starts at `fragmentStart` and ends at the cursor.
+ */
+type MenuState = {
+  candidates: string[];
+  fragmentStart: number;
+  selected: number;
+  scrollTop: number;
+};
+
 const commonPrefix = (candidates: readonly string[]): string => {
   let prefix = candidates[0];
 
@@ -122,6 +140,7 @@ export class LineEditor {
 
   private pasting = false;
   private sawReturnAt = 0;
+  private menuState: MenuState | undefined;
 
   public constructor(options: LineEditorOptions) {
     this.input = options.input;
@@ -148,6 +167,15 @@ export class LineEditor {
     return this.currentCursor;
   }
 
+  /** The open completion menu's filtered rows and selection, if one is open. */
+  public get menu(): { rows: string[]; selected: number } | undefined {
+    if (this.menuState == null) {
+      return undefined;
+    }
+
+    return { rows: this.menuCandidates(this.menuState), selected: this.menuState.selected };
+  }
+
   private get columns(): number {
     const columns = this.output.columns ?? 0;
 
@@ -170,6 +198,7 @@ export class LineEditor {
     this.prevCursorRow = 0;
     this.historyIndex = -1;
     this.searchPrefix = undefined;
+    this.menuState = undefined;
     this.active = true;
 
     const promise = new Promise<LineEditorResult>((resolve) => {
@@ -189,6 +218,8 @@ export class LineEditor {
 
   /** Hands the terminal to an external command ($EDITOR, $PAGER). */
   public suspend(): void {
+    this.menuState = undefined;
+
     if (this.input.setRawMode != null) {
       this.output.write(disableBracketedPaste);
     }
@@ -247,6 +278,11 @@ export class LineEditor {
    * clear downward, rewrite, then park the cursor at its logical position.
    * When the text ends exactly at the last column a space forces the pending
    * wrap to commit, keeping the math deterministic (readline's own trick).
+   *
+   * An open completion menu paints below the line, one row per candidate;
+   * writing those rows with \r\n scrolls the viewport when the line sits at
+   * the bottom of the terminal, and the downward clear at the start of every
+   * repaint is what tears the menu down again.
    */
   private render(): void {
     const cols = this.columns;
@@ -269,9 +305,15 @@ export class LineEditor {
       out += ' ';
     }
 
+    const menuRows = this.menuState == null ? [] : this.renderMenuRows(this.menuState, cols);
+
+    for (const row of menuRows) {
+      out += `\r\n${row}`;
+    }
+
     out += '\r';
 
-    const up = endRow - cursorRow;
+    const up = endRow + menuRows.length - cursorRow;
 
     if (up > 0) {
       out += `\u001b[${up}A`;
@@ -304,6 +346,7 @@ export class LineEditor {
     this.currentLine = '';
     this.currentCursor = 0;
     this.prevCursorRow = 0;
+    this.menuState = undefined;
     resolve?.(result);
   }
 
@@ -315,21 +358,35 @@ export class LineEditor {
     this.finish({ kind: 'line', text });
   }
 
-  private handleKey(str: string | undefined, key: LineEditorKey): void {
+  /** Handles the bracketed-paste markers; a starting paste closes the menu. */
+  private handlePasteMarker(key: LineEditorKey): boolean {
     if (key.name === 'paste-start') {
+      this.menuState = undefined;
       this.pasting = true;
 
-      return;
+      return true;
     }
 
     if (key.name === 'paste-end') {
       this.pasting = false;
 
+      return true;
+    }
+
+    return false;
+  }
+
+  private handleKey(str: string | undefined, key: LineEditorKey): void {
+    if (this.handlePasteMarker(key)) {
       return;
     }
 
     if (this.sawReturnAt !== 0 && key.name !== 'enter') {
       this.sawReturnAt = 0;
+    }
+
+    if (this.menuState != null && this.handleMenuKey(this.menuState, str, key)) {
+      return;
     }
 
     // Substring search: the text left of the cursor filters Up/Down history
@@ -703,9 +760,12 @@ export class LineEditor {
   }
 
   /**
-   * Tab: insert the candidates' common prefix beyond the typed fragment,
-   * re-casing the fragment to the canonical form on the way (`sel` +Tab ->
-   * `SELECT`). The completion menu is a later ticket; nothing lists yet.
+   * Tab: first insert the candidates' common prefix beyond the typed
+   * fragment, re-casing the fragment to the canonical form on the way (`sel`
+   * +Tab -> `SELECT`); a single candidate completes fully right there. When
+   * multiple candidates remain the menu opens below the line. Case-divergent
+   * candidates can make the common prefix shorter than the fragment - then
+   * nothing inserts, but the menu still lists them.
    */
   private completeWord(): void {
     if (this.complete == null) {
@@ -719,15 +779,164 @@ export class LineEditor {
     }
 
     const prefix = commonPrefix(candidates);
+    const start = this.currentCursor - fragment.length;
 
-    if (!prefix.toLowerCase().startsWith(fragment.toLowerCase()) || prefix === fragment) {
+    if (prefix.toLowerCase().startsWith(fragment.toLowerCase()) && prefix !== fragment) {
+      this.currentLine = this.currentLine.slice(0, start) + prefix + this.currentLine.slice(this.currentCursor);
+      this.currentCursor = start + prefix.length;
+    }
+
+    if (candidates.length > 1) {
+      this.menuState = { candidates, fragmentStart: start, selected: 0, scrollTop: 0 };
+    }
+
+    this.render();
+  }
+
+  /**
+   * Keys the open menu consumes: Tab and Up/Down cycle the selection (Tab
+   * accepts instead once filtering leaves a single row), Enter accepts, Esc
+   * closes, and typing or Backspace re-filters the list against the fragment.
+   * Anything else dismisses the menu and falls through to normal handling.
+   */
+  private handleMenuKey(menu: MenuState, str: string | undefined, key: LineEditorKey): boolean {
+    if (key.name === 'escape') {
+      this.menuState = undefined;
+      this.render();
+
+      return true;
+    }
+
+    if (key.ctrl === true || key.meta === true) {
+      this.menuState = undefined;
+      this.render();
+
+      return false;
+    }
+
+    if (this.handleMenuSelectionKey(menu, key)) {
+      return true;
+    }
+
+    if (key.name === 'backspace') {
+      this.deleteLeft();
+      this.refilterMenu();
+
+      return true;
+    }
+
+    if (typeof str === 'string' && str.length > 0 && !lineEndingPattern.test(str)) {
+      this.insert(sanitizeInsert(str));
+      this.refilterMenu();
+
+      return true;
+    }
+
+    this.menuState = undefined;
+    this.render();
+
+    return false;
+  }
+
+  /** Tab and Up/Down cycle, Enter accepts - Tab accepts too on a lone row. */
+  private handleMenuSelectionKey(menu: MenuState, key: LineEditorKey): boolean {
+    if (key.name === 'tab') {
+      const filtered = this.menuCandidates(menu);
+
+      if (filtered.length === 1) {
+        this.acceptMenu(menu, filtered[0]);
+      } else {
+        this.moveMenuSelection(key.shift === true ? -1 : 1);
+      }
+
+      return true;
+    }
+
+    if (key.shift !== true && (key.name === 'up' || key.name === 'down')) {
+      this.moveMenuSelection(key.name === 'down' ? 1 : -1);
+
+      return true;
+    }
+
+    if (key.name === 'return' || key.name === 'enter') {
+      const filtered = this.menuCandidates(menu);
+
+      this.acceptMenu(menu, filtered[Math.min(menu.selected, filtered.length - 1)]);
+
+      return true;
+    }
+
+    return false;
+  }
+
+  /** The captured candidates narrowed by what has been typed since Tab. */
+  private menuCandidates(menu: MenuState): string[] {
+    const fragment = this.currentLine.slice(menu.fragmentStart, this.currentCursor).toLowerCase();
+
+    return menu.candidates.filter((candidate) => candidate.toLowerCase().startsWith(fragment));
+  }
+
+  /** Replaces the fragment with the accepted candidate and closes the menu. */
+  private acceptMenu(menu: MenuState, candidate: string): void {
+    this.menuState = undefined;
+    this.currentLine =
+      this.currentLine.slice(0, menu.fragmentStart) + candidate + this.currentLine.slice(this.currentCursor);
+    this.currentCursor = menu.fragmentStart + candidate.length;
+    this.render();
+  }
+
+  /** Cycles the selection with wrap-around, scrolling to keep it visible. */
+  private moveMenuSelection(delta: number): void {
+    const menu = this.menuState;
+
+    if (menu == null) {
       return;
     }
 
-    const start = this.currentCursor - fragment.length;
+    const count = this.menuCandidates(menu).length;
 
-    this.currentLine = this.currentLine.slice(0, start) + prefix + this.currentLine.slice(this.currentCursor);
-    this.currentCursor = start + prefix.length;
+    menu.selected = (menu.selected + delta + count) % count;
+
+    if (menu.selected < menu.scrollTop) {
+      menu.scrollTop = menu.selected;
+    } else if (menu.selected >= menu.scrollTop + menuMaxVisible) {
+      menu.scrollTop = menu.selected - menuMaxVisible + 1;
+    }
+
     this.render();
+  }
+
+  /**
+   * After an edit while the menu is open: close it when the cursor left the
+   * fragment or nothing matches any more, otherwise reset the selection to
+   * the top of the narrowed list.
+   */
+  private refilterMenu(): void {
+    const menu = this.menuState;
+
+    if (menu == null) {
+      return;
+    }
+
+    if (this.currentCursor < menu.fragmentStart || this.menuCandidates(menu).length === 0) {
+      this.menuState = undefined;
+    } else {
+      menu.selected = 0;
+      menu.scrollTop = 0;
+    }
+
+    this.render();
+  }
+
+  /** The visible slice of the menu: selected row inverse, width-clamped. */
+  private renderMenuRows(menu: MenuState, cols: number): string[] {
+    const filtered = this.menuCandidates(menu);
+    const width = Math.min(Math.max(...filtered.map((candidate) => candidate.length), 1), cols - 1);
+
+    return filtered.slice(menu.scrollTop, menu.scrollTop + menuMaxVisible).map((candidate, index) => {
+      const text = candidate.slice(0, width).padEnd(width);
+
+      return menu.scrollTop + index === menu.selected ? `${inverseOn}${text}${inverseOff}` : text;
+    });
   }
 }

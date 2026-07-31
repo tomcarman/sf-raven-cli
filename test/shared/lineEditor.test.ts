@@ -462,6 +462,218 @@ describe('LineEditor', () => {
     });
   });
 
+  describe('completion menu', () => {
+    const inverse = (text: string): string => `${esc}[7m${text}${esc}[27m`;
+    const shiftTab = `${esc}[Z`;
+
+    /** A completer shaped like completeSoql: case-insensitive prefix matches. */
+    const fragmentCompleter =
+      (candidates: string[]) =>
+      (before: string): [string[], string] => {
+        const fragment = /[A-Za-z0-9_]*$/.exec(before)?.[0] ?? '';
+
+        return [candidates.filter((candidate) => candidate.toLowerCase().startsWith(fragment.toLowerCase())), fragment];
+      };
+
+    const pressEscape = async (harness: Harness): Promise<void> => {
+      harness.input.emit('keypress', esc, { name: 'escape', sequence: esc });
+      await new Promise((resolve) => {
+        setImmediate(resolve);
+      });
+    };
+
+    it('completes the common prefix, then opens the menu below the line', async () => {
+      const { editor, output, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+
+      void editor.readLine('> ');
+      await press('n');
+      await press(keys.tab);
+      assert.equal(editor.line, 'N');
+      assert.deepEqual(editor.menu, { rows: ['Name', 'NumberOfEmployees'], selected: 0 });
+      // Rows paint below the input line; the cursor climbs back to its spot.
+      assert.equal(
+        output.lastChunk,
+        `\r${esc}[J> N\r\n${inverse('Name'.padEnd(17))}\r\nNumberOfEmployees\r${esc}[2A${esc}[3C`
+      );
+    });
+
+    it('inserts a single candidate directly and never opens the menu', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['SELECT']) });
+
+      void editor.readLine('> ');
+      await press('sel');
+      await press(keys.tab);
+      assert.equal(editor.line, 'SELECT');
+      assert.equal(editor.menu, undefined);
+    });
+
+    it('opens the menu without inline completion when candidate casing diverges', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NAICSCode']) });
+
+      void editor.readLine('> ');
+      await press('na');
+      await press(keys.tab);
+      assert.equal(editor.line, 'na');
+      assert.deepEqual(editor.menu, { rows: ['Name', 'NAICSCode'], selected: 0 });
+    });
+
+    it('cycles the selection with Tab, Shift+Tab, Up, and Down', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['One', 'Two', 'Three']) });
+
+      void editor.readLine('> ');
+      await press(keys.tab);
+      assert.equal(editor.menu?.selected, 0);
+      await press(keys.tab);
+      assert.equal(editor.menu?.selected, 1);
+      await press(keys.tab);
+      assert.equal(editor.menu?.selected, 2);
+      await press(keys.tab);
+      assert.equal(editor.menu?.selected, 0);
+      await press(shiftTab);
+      assert.equal(editor.menu?.selected, 2);
+      await press(keys.up);
+      assert.equal(editor.menu?.selected, 1);
+      await press(keys.down);
+      assert.equal(editor.menu?.selected, 2);
+    });
+
+    it('accepts the selection with Enter without submitting the read', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+      const read = editor.readLine('> ');
+
+      await press('n');
+      await press(keys.tab);
+      await press(keys.down);
+      await press(keys.enter);
+      assert.equal(editor.line, 'NumberOfEmployees');
+      assert.equal(editor.cursor, 17);
+      assert.equal(editor.menu, undefined);
+
+      // The read is still pending; the next Enter submits the accepted line.
+      await press(keys.enter);
+      assert.deepEqual(await read, { kind: 'line', text: 'NumberOfEmployees' });
+    });
+
+    it('filters live as you type and accepts a lone survivor with Tab', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'Phone', 'NumberOfEmployees']) });
+
+      void editor.readLine('> ');
+      await press(keys.tab);
+      assert.equal(editor.menu?.rows.length, 3);
+      await press('p');
+      assert.deepEqual(editor.menu, { rows: ['Phone'], selected: 0 });
+      await press(keys.tab);
+      assert.equal(editor.line, 'Phone');
+      assert.equal(editor.menu, undefined);
+    });
+
+    it('closes on Esc leaving the line untouched', async () => {
+      const harness = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+
+      void harness.editor.readLine('> ');
+      await harness.press('n');
+      await harness.press(keys.tab);
+      await pressEscape(harness);
+      assert.equal(harness.editor.menu, undefined);
+      assert.equal(harness.editor.line, 'N');
+      // The closing repaint carries no menu rows.
+      assert.equal(harness.output.lastChunk, `\r${esc}[J> N\r${esc}[3C`);
+    });
+
+    it('closes when typing filters every candidate out', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+
+      void editor.readLine('> ');
+      await press('n');
+      await press(keys.tab);
+      await press('z');
+      assert.equal(editor.menu, undefined);
+      assert.equal(editor.line, 'Nz');
+    });
+
+    it('refilters on Backspace and closes when the cursor leaves the fragment', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+
+      void editor.readLine('> ');
+      await press('SELECT n');
+      await press(keys.tab);
+      assert.equal(editor.line, 'SELECT N');
+      assert.equal(editor.menu?.rows.length, 2);
+      await press(keys.backspace);
+      assert.equal(editor.line, 'SELECT ');
+      assert.equal(editor.menu?.rows.length, 2);
+      await press(keys.backspace);
+      assert.equal(editor.line, 'SELECT');
+      assert.equal(editor.menu, undefined);
+    });
+
+    it('dismisses the menu on other keys, which still take effect', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+
+      void editor.readLine('> ');
+      await press('n');
+      await press(keys.tab);
+      await press(keys.ctrlA);
+      assert.equal(editor.menu, undefined);
+      assert.equal(editor.line, 'N');
+      assert.equal(editor.cursor, 0);
+    });
+
+    it('shows at most ten rows and scrolls to keep the selection visible', async () => {
+      const candidates = Array.from({ length: 15 }, (_, index) => `Item${String(index + 1).padStart(2, '0')}`);
+      const { editor, output, press } = makeEditor({ complete: fragmentCompleter(candidates) });
+
+      void editor.readLine('> ');
+      await press(keys.tab);
+      assert.equal(editor.line, 'Item');
+      assert.equal(output.lastChunk.split('\r\n').length - 1, 10);
+      assert.equal(output.lastChunk.includes('Item10'), true);
+      assert.equal(output.lastChunk.includes('Item11'), false);
+
+      for (let presses = 0; presses < 10; presses++) {
+        // eslint-disable-next-line no-await-in-loop
+        await press(keys.tab);
+      }
+
+      assert.equal(editor.menu?.selected, 10);
+      assert.equal(output.lastChunk.includes(inverse('Item11')), true);
+      assert.equal(output.lastChunk.includes('Item01'), false);
+      assert.equal(output.lastChunk.includes('Item02'), true);
+    });
+
+    it('truncates menu rows to the terminal width', async () => {
+      const { editor, output, press } = makeEditor({ complete: fragmentCompleter(['Alpha_one_long', 'Alpha_two_long']) });
+
+      output.columns = 10;
+      void editor.readLine('> ');
+      await press(keys.tab);
+      assert.equal(editor.line, 'Alpha_');
+      assert.equal(output.lastChunk.includes(`\r\n${inverse('Alpha_one')}`), true);
+      assert.equal(output.lastChunk.includes('\r\nAlpha_two'), true);
+    });
+
+    it('closes when a paste begins', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+
+      void editor.readLine('> ');
+      await press('n');
+      await press(keys.tab);
+      await press(`${keys.pasteStart}a${keys.pasteEnd}`);
+      assert.equal(editor.menu, undefined);
+      assert.equal(editor.line, 'Na');
+    });
+
+    it('closes on suspend so the $PAGER flow repaints cleanly', async () => {
+      const { editor, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
+
+      void editor.readLine('> ');
+      await press('n');
+      await press(keys.tab);
+      editor.suspend();
+      assert.equal(editor.menu, undefined);
+    });
+  });
+
   describe('engagement gate', () => {
     const tty = { isTTY: true };
     const pipe = { isTTY: undefined };
