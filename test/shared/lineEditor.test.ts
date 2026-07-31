@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { LineEditor, type LineEditorInput } from '../../src/shared/lineEditor.js';
+import { LineEditor, lineEditorEngages, type LineEditorInput } from '../../src/shared/lineEditor.js';
 
 /** A fake stdout: captures writes, reports a width, can emit 'resize'. */
 class FakeOutput extends EventEmitter {
@@ -215,6 +215,18 @@ describe('LineEditor', () => {
       assert.equal(editor.line, 'FROM');
     });
 
+    it('kills to end with Ctrl+Shift+Delete', async () => {
+      const { editor, press } = makeEditor();
+
+      void editor.readLine('> ');
+      await press('SELECT Id');
+      await press(keys.left);
+      await press(keys.left);
+      await press(`${esc}[3;6~`);
+      assert.equal(editor.line, 'SELECT ');
+      assert.equal(editor.cursor, 7);
+    });
+
     it('kills to start with Ctrl+U and to end with Ctrl+K', async () => {
       const { editor, press } = makeEditor();
 
@@ -376,6 +388,17 @@ describe('LineEditor', () => {
       assert.equal(output.lastChunk, `\r${esc}[J> <a>\r${esc}[3C`);
     });
 
+    it('clears the screen and repaints on Ctrl+L', async () => {
+      const { editor, output, press } = makeEditor();
+
+      void editor.readLine('> ');
+      await press('ab');
+      await press('\u000c');
+      assert.equal(output.chunks[output.chunks.length - 2], `${esc}[1;1H${esc}[J`);
+      assert.equal(output.lastChunk, `\r${esc}[J> ab\r${esc}[4C`);
+      assert.equal(editor.line, 'ab');
+    });
+
     it('repaints on terminal resize', async () => {
       const { editor, output, press } = makeEditor();
 
@@ -436,6 +459,27 @@ describe('LineEditor', () => {
       await press(keys.home);
       await press(keys.tab);
       assert.deepEqual(calls, [['', 'SELECT Id']]);
+    });
+  });
+
+  describe('engagement gate', () => {
+    const tty = { isTTY: true };
+    const pipe = { isTTY: undefined };
+
+    it('engages only when both streams are TTYs', () => {
+      assert.equal(lineEditorEngages(tty, tty, {}), true);
+      assert.equal(lineEditorEngages(pipe, tty, {}), false);
+      assert.equal(lineEditorEngages(tty, pipe, {}), false);
+    });
+
+    it('stays plain on dumb terminals', () => {
+      assert.equal(lineEditorEngages(tty, tty, { TERM: 'dumb' }), false);
+      assert.equal(lineEditorEngages(tty, tty, { TERM: 'xterm-256color' }), true);
+    });
+
+    it('stays plain when RAVEN_SOQL_PLAIN is set', () => {
+      assert.equal(lineEditorEngages(tty, tty, { RAVEN_SOQL_PLAIN: '1' }), false);
+      assert.equal(lineEditorEngages(tty, tty, { RAVEN_SOQL_PLAIN: '' }), true);
     });
   });
 

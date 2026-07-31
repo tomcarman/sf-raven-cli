@@ -28,7 +28,12 @@ import {
   type RecordFormat,
   type RecordQueryConnection,
 } from '../../shared/recordQuery.js';
-import { LineEditor, type LineEditorResult } from '../../shared/lineEditor.js';
+import {
+  LineEditor,
+  lineEditorEngages,
+  type LineEditorCompleter,
+  type LineEditorResult,
+} from '../../shared/lineEditor.js';
 import { completeSoql, outerSoqlFromObject } from '../../shared/soqlComplete.js';
 import { highlightSoql } from '../../shared/soqlHighlight.js';
 import { loadSoqlHistory, saveSoqlHistory, soqlHistoryPath } from '../../shared/soqlHistory.js';
@@ -221,7 +226,7 @@ class ReadlineReplInput implements ReplInput {
   private waiting: ((read: ReplRead) => void) | undefined;
   private closed = false;
 
-  public constructor(complete: (lineToCursor: string, fullLine: string) => [string[], string]) {
+  public constructor(complete: LineEditorCompleter) {
     this.rl = createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -358,16 +363,9 @@ class ReplSession {
    * serve (non-TTY, dumb terminal, RAVEN_SOQL_PLAIN=1) gets plain readline.
    */
   private createInput(): ReplInput {
-    const complete = (lineToCursor: string, fullLine: string): [string[], string] =>
-      this.complete(lineToCursor, fullLine);
+    const complete: LineEditorCompleter = (lineToCursor, fullLine) => this.complete(lineToCursor, fullLine);
 
-    const interactive =
-      process.stdin.isTTY === true &&
-      process.stdout.isTTY === true &&
-      process.env.TERM !== 'dumb' &&
-      (process.env.RAVEN_SOQL_PLAIN ?? '') === '';
-
-    if (!interactive) {
+    if (!lineEditorEngages(process.stdin, process.stdout, process.env)) {
       return new ReadlineReplInput(complete);
     }
 

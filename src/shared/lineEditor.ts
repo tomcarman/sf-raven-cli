@@ -35,14 +35,28 @@ export type LineEditorOutput = {
   removeListener?: (event: 'resize', listener: () => void) => unknown;
 };
 
+/** The readline completer contract: candidates plus the fragment they replace. */
+export type LineEditorCompleter = (lineToCursor: string, line: string) => [string[], string];
+
 export type LineEditorOptions = {
   input: LineEditorInput;
   output: LineEditorOutput;
   /** Maps the plain line to its colored form; must preserve the visible width. */
   highlight?: (line: string) => string;
-  /** The readline completer contract: candidates plus the fragment they replace. */
-  complete?: (lineToCursor: string, line: string) => [string[], string];
+  complete?: LineEditorCompleter;
 };
+
+/**
+ * The engagement gate: the custom editor drives interactive terminals only -
+ * both streams must be TTYs, the terminal must not be dumb, and
+ * RAVEN_SOQL_PLAIN=1 forces the plain fallback path.
+ */
+export const lineEditorEngages = (
+  stdin: { isTTY?: boolean },
+  stdout: { isTTY?: boolean },
+  env: Record<string, string | undefined>
+): boolean =>
+  stdin.isTTY === true && stdout.isTTY === true && env.TERM !== 'dumb' && (env.RAVEN_SOQL_PLAIN ?? '') === '';
 
 /** Matches Node readline's crlfDelay default enough to swallow \r\n pairs. */
 const crlfDelayMs = 200;
@@ -90,7 +104,7 @@ export class LineEditor {
   private readonly input: LineEditorInput;
   private readonly output: LineEditorOutput;
   private readonly highlight?: (line: string) => string;
-  private readonly complete?: (lineToCursor: string, line: string) => [string[], string];
+  private readonly complete?: LineEditorCompleter;
 
   private prompt = '';
   private currentLine = '';
