@@ -486,6 +486,7 @@ export type SoqlMetaCommand =
   | { type: 'open'; row: number }
   | { type: 'record'; row: number }
   | { type: 'tooling'; mode: SoqlToolingMode | undefined }
+  | { type: 'refresh' }
   | { type: 'invalid'; message: string };
 
 const toolingModes: readonly SoqlToolingMode[] = ['auto', 'on', 'off'];
@@ -493,20 +494,26 @@ const sobjectNamePattern = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 const invalid = (message: string): SoqlMetaCommand => ({ type: 'invalid', message });
 
+const bareMetaCommands: Readonly<Record<string, SoqlMetaCommand>> = {
+  help: { type: 'help' },
+  q: { type: 'quit' },
+  e: { type: 'editor' },
+  refresh: { type: 'refresh' },
+};
+
 /** Parses a `\command [args]` line into a dispatchable meta-command. */
 export const parseSoqlMetaLine = (line: string): SoqlMetaCommand => {
   const trimmed = line.trim().slice(1);
   const spaceIndex = trimmed.search(/\s/);
   const name = spaceIndex === -1 ? trimmed : trimmed.slice(0, spaceIndex);
   const rest = spaceIndex === -1 ? '' : trimmed.slice(spaceIndex + 1).trim();
+  const bare = bareMetaCommands[name];
+
+  if (bare != null) {
+    return bare;
+  }
 
   switch (name) {
-    case 'help':
-      return { type: 'help' };
-    case 'q':
-      return { type: 'quit' };
-    case 'e':
-      return { type: 'editor' };
     case 'limit':
       return /^\d+$/.test(rest)
         ? { type: 'limit', value: Number(rest) }

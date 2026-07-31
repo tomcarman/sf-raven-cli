@@ -7,6 +7,12 @@ import { Args } from '@oclif/core';
 import { Messages, type Connection, type Org } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import chalk from 'chalk';
+import {
+  DescribeCache,
+  describeCacheDirectory,
+  describeClients,
+  type DescribeCapableConnection,
+} from '../../shared/describeCache.js';
 import { buildRecordTarget, launchBrowser } from '../../shared/open.js';
 import {
   buildFieldDefinitionQuery,
@@ -22,6 +28,7 @@ import {
   type RecordFormat,
   type RecordQueryConnection,
 } from '../../shared/recordQuery.js';
+import { completeSoql, outerSoqlFromObject } from '../../shared/soqlComplete.js';
 import { loadSoqlHistory, saveSoqlHistory, soqlHistoryPath } from '../../shared/soqlHistory.js';
 import {
   appendSoqlHistory,
@@ -57,6 +64,7 @@ const helpLines: ReadonlyArray<[string, string]> = [
   ['\\open <row#>', "Open that row's record in the browser."],
   ['\\record <row#>', "Show every field of that row's record."],
   ['\\tooling [on|off|auto]', 'Force Tooling API routing, or show the current mode.'],
+  ['\\refresh', 'Clear the cached describes used for tab completion and re-fetch them.'],
   ['\\e', 'Edit the last query in $EDITOR; it runs again if changed.'],
 ];
 
@@ -161,8 +169,12 @@ export default class RavenSoql extends SfCommand<RavenSoqlResult> {
   private async runRepl(org: Org, connection: Connection): Promise<void> {
     const ux = new Ux({ jsonEnabled: false });
     const historyPath = soqlHistoryPath(this.config.dataDir, org.getOrgId());
+    const describes = new DescribeCache({
+      directory: describeCacheDirectory(this.config.cacheDir, org.getOrgId(), connection.getApiVersion()),
+      ...describeClients(connection as unknown as DescribeCapableConnection),
+    });
 
-    await new ReplSession(org, connection, ux, historyPath).start();
+    await new ReplSession(org, connection, ux, historyPath, describes).start();
   }
 }
 
@@ -204,11 +216,16 @@ class ReplSession {
     private readonly org: Org,
     private readonly connection: Connection,
     private readonly ux: Ux,
-    private readonly historyPath: string
+    private readonly historyPath: string,
+    private readonly describes: DescribeCache
   ) {}
 
   public async start(): Promise<void> {
     this.historyEntries = await loadSoqlHistory(this.historyPath);
+
+    // Kick off the global describes now; the prompt appears immediately and
+    // tab completion warms up when they land.
+    void this.describes.warm();
 
     this.ux.log(messages.getMessage('info.welcome'));
     this.ux.log(
@@ -221,6 +238,7 @@ class ReplSession {
       prompt: mainPrompt,
       historySize: soqlHistoryCap,
       history: [...this.historyEntries].reverse(),
+      completer: (line: string): [string[], string] => this.complete(line),
     }) as ReadlineWithHistory;
 
     this.rl.on('SIGINT', () => this.onInterrupt());
@@ -318,9 +336,14 @@ class ReplSession {
         case 'tooling':
           if (command.mode != null) {
             this.toolingMode = command.mode;
+            this.describes.setToolingPreferred(command.mode === 'on');
           }
 
           this.ux.log(messages.getMessage('info.toolingState', [this.toolingMode]));
+          break;
+        case 'refresh':
+          await this.describes.refresh();
+          this.ux.log(messages.getMessage('info.refreshed'));
           break;
         case 'csv':
           await this.writeCsv(command.path);
@@ -353,11 +376,40 @@ class ReplSession {
     }
   }
 
+  /**
+   * Tab completion. Readline hands over the current line up to the cursor;
+   * earlier lines of a multi-line query come from the continuation buffer,
+   * and the full current line lets a FROM typed after the cursor count.
+   */
+  private complete(lineToCursor: string): [string[], string] {
+    const currentLine = (this.rl as ReadlineWithHistory | undefined)?.line ?? lineToCursor;
+
+    return completeSoql(
+      [...this.buffer, lineToCursor].join('\n'),
+      [...this.buffer, currentLine].join('\n'),
+      this.describes
+    );
+  }
+
+  /**
+   * In auto mode, an object the describes say is Tooling-only routes straight
+   * to the Tooling API; everything else keeps the INVALID_TYPE retry.
+   */
+  private effectiveToolingMode(query: string): SoqlToolingMode {
+    if (this.toolingMode !== 'auto') {
+      return this.toolingMode;
+    }
+
+    const object = outerSoqlFromObject(query);
+
+    return object != null && this.describes.isToolingOnly(object) === true ? 'on' : 'auto';
+  }
+
   private async executeAndRender(query: string): Promise<void> {
     try {
       const execution = await executeSoql(this.connection as unknown as SoqlConnection, query, {
         autoLimit: this.autoLimit,
-        toolingMode: this.toolingMode,
+        toolingMode: this.effectiveToolingMode(query),
       });
 
       this.lastExecution = execution;

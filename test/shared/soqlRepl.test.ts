@@ -64,6 +64,7 @@ describe('parseSoqlMetaLine', () => {
     assert.deepEqual(parseSoqlMetaLine('\\help'), { type: 'help' });
     assert.deepEqual(parseSoqlMetaLine('\\q'), { type: 'quit' });
     assert.deepEqual(parseSoqlMetaLine('\\e'), { type: 'editor' });
+    assert.deepEqual(parseSoqlMetaLine('\\refresh'), { type: 'refresh' });
   });
 
   it('parses \\limit with a non-negative integer', () => {

@@ -88,6 +88,10 @@ Output format set to %s.
 
 Tooling routing: %s.
 
+# info.refreshed
+
+Describe cache refreshed.
+
 # info.csvWritten
 
 Wrote %s row(s) to %s.
