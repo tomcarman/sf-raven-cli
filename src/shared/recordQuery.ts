@@ -331,8 +331,16 @@ export const stripAttributes = (record: Record<string, unknown>): Record<string,
   Object.fromEntries(
     Object.entries(record)
       .filter(([key]) => key !== 'attributes')
-      .map(([key, value]) => [key, isPlainObject(value) ? stripAttributes(value) : value])
+      .map(([key, value]) => [key, stripAttributesFromValue(value)])
   );
+
+const stripAttributesFromValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(stripAttributesFromValue);
+  }
+
+  return isPlainObject(value) ? stripAttributes(value) : value;
+};
 
 export const resolveFieldValue = (record: Record<string, unknown>, field: string): unknown =>
   field.split('.').reduce<unknown>((value, segment) => (isPlainObject(value) ? value[segment] : undefined), record);

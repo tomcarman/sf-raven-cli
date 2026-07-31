@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { SfCommand, Flags, Ux } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
+import { buildFieldDefinitionQuery } from '../../../../shared/objectFields.js';
 import { escapeCsvValue, parseSObjectList } from '../../../../shared/query.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -76,8 +77,7 @@ export default class ObjectDisplayFields extends SfCommand<ObjectDisplayFieldsRe
       await sobjects.reduce(async (previousQuery, sobject) => {
         await previousQuery;
 
-        const query = `SELECT EntityDefinition.QualifiedApiName, Label, QualifiedApiName, DataType, IsNillable, Description FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '${sobject}' ORDER BY QualifiedApiName`;
-        const queryResult = (await conn.query(query)) as QueryResult;
+        const queryResult = (await conn.query(buildFieldDefinitionQuery(sobject))) as QueryResult;
         records.push(...queryResult.records);
       }, Promise.resolve());
     } finally {
