@@ -4,7 +4,7 @@ Run SOQL queries in an interactive REPL, or one-shot from the shell.
 
 # description
 
-Without a query argument, starts an interactive REPL with multi-line input, per-org arrow-key history, an automatic LIMIT on unbounded queries, and automatic Tooling API fallback for setup entities. Results render as a table with a row number column; meta-commands (type \help) act on the last result - open a row in the browser, expand it to a full record view, export to CSV, and more. With a query argument, runs the query once through the same pipeline and prints it in the chosen format.
+Without a query argument, starts an interactive REPL with multi-line input, per-org arrow-key history with Ctrl+R reverse search, an automatic LIMIT on unbounded queries, and automatic Tooling API fallback for setup entities. Results render as a table with a row number column; meta-commands (type \help) act on the last result - open a row in the browser, expand it to a full record view, export to CSV, and more. With a query argument, runs the query once through the same pipeline and prints it in the chosen format.
 
 # examples
 

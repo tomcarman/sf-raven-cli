@@ -28,7 +28,14 @@ import {
   type RecordFormat,
   type RecordQueryConnection,
 } from '../../shared/recordQuery.js';
+import {
+  LineEditor,
+  lineEditorEngages,
+  type LineEditorCompleter,
+  type LineEditorResult,
+} from '../../shared/lineEditor.js';
 import { completeSoql, outerSoqlFromObject } from '../../shared/soqlComplete.js';
+import { highlightSoql } from '../../shared/soqlHighlight.js';
 import { loadSoqlHistory, saveSoqlHistory, soqlHistoryPath } from '../../shared/soqlHistory.js';
 import {
   appendSoqlHistory,
@@ -195,12 +202,102 @@ const rowRecordId = (execution: SoqlExecution, row: number): string => {
   return id;
 };
 
-type ReadlineWithHistory = Interface & { history: string[] };
+type ReadlineWithHistory = Interface & { history: string[]; line?: string };
+
+type ReplRead = LineEditorResult;
+
+/** What the session needs from an input layer - the custom editor or readline. */
+type ReplInput = {
+  readLine(prompt: string): Promise<ReplRead>;
+  setHistory(entries: readonly string[]): void;
+  suspend(): void;
+  restore(): void;
+  close(): void;
+};
+
+/**
+ * The plain readline input path: non-TTY stdin/stdout, dumb terminals, and
+ * `RAVEN_SOQL_PLAIN=1`. Kept permanently as the fallback the custom editor
+ * never replaces.
+ */
+class ReadlineReplInput implements ReplInput {
+  private readonly rl: ReadlineWithHistory;
+  private readonly pending: ReplRead[] = [];
+  private waiting: ((read: ReplRead) => void) | undefined;
+  private closed = false;
+
+  public constructor(complete: LineEditorCompleter) {
+    this.rl = createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: mainPrompt,
+      historySize: soqlHistoryCap,
+      completer: (lineToCursor: string): [string[], string] => complete(lineToCursor, this.rl.line ?? lineToCursor),
+    }) as ReadlineWithHistory;
+
+    this.rl.on('line', (text: string) => this.push({ kind: 'line', text }));
+    this.rl.on('SIGINT', () => {
+      this.rl.write(null, { ctrl: true, name: 'u' });
+      process.stdout.write('\n');
+      this.push({ kind: 'interrupt' });
+    });
+    this.rl.on('close', () => {
+      this.closed = true;
+      this.push({ kind: 'eof' });
+    });
+  }
+
+  public async readLine(prompt: string): Promise<ReplRead> {
+    if (this.closed && this.pending.length === 0) {
+      return { kind: 'eof' };
+    }
+
+    if (!this.closed) {
+      this.rl.setPrompt(prompt);
+      this.rl.prompt();
+    }
+
+    if (this.pending.length > 0) {
+      return this.pending.shift() as ReplRead;
+    }
+
+    return new Promise((resolveRead) => {
+      this.waiting = resolveRead;
+    });
+  }
+
+  public setHistory(entries: readonly string[]): void {
+    this.rl.history = [...entries].reverse();
+  }
+
+  public suspend(): void {
+    this.rl.pause();
+  }
+
+  public restore(): void {
+    this.rl.resume();
+  }
+
+  public close(): void {
+    this.rl.close();
+  }
+
+  private push(read: ReplRead): void {
+    const waiting = this.waiting;
+
+    if (waiting != null) {
+      this.waiting = undefined;
+      waiting(read);
+    } else {
+      this.pending.push(read);
+    }
+  }
+}
 
 /**
  * The interactive loop. Everything behavioral (balance detection, meta
  * parsing, auto-limit, rendering) lives in the shared soql modules; this class
- * only wires readline, dispatches meta-commands, and owns session state.
+ * only wires an input layer, dispatches meta-commands, and owns session state.
  */
 class ReplSession {
   private autoLimit = defaultSoqlAutoLimit;
@@ -210,7 +307,7 @@ class ReplSession {
   private historyEntries: string[] = [];
   private lastExecution: SoqlExecution | undefined;
   private lastQuery: string | undefined;
-  private rl!: ReadlineWithHistory;
+  private input!: ReplInput;
 
   public constructor(
     private readonly org: Org,
@@ -232,46 +329,66 @@ class ReplSession {
       chalk.dim(messages.getMessage('info.connected', [this.connection.instanceUrl, this.org.getUsername() ?? '']))
     );
 
-    this.rl = createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      prompt: mainPrompt,
-      historySize: soqlHistoryCap,
-      history: [...this.historyEntries].reverse(),
-      completer: (line: string): [string[], string] => this.complete(line),
-    }) as ReadlineWithHistory;
+    this.input = this.createInput();
+    this.input.setHistory(this.historyEntries);
 
-    this.rl.on('SIGINT', () => this.onInterrupt());
+    for (;;) {
+      // The REPL is inherently sequential: one line in, one result out.
+      // eslint-disable-next-line no-await-in-loop
+      const read = await this.input.readLine(this.buffer.length > 0 ? continuationPrompt : mainPrompt);
 
-    this.rl.prompt();
+      if (read.kind === 'eof') {
+        break;
+      }
 
-    for await (const line of this.rl) {
-      const outcome = await this.handleLine(line);
+      if (read.kind === 'interrupt') {
+        this.onInterrupt();
+        continue;
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const outcome = await this.handleLine(read.text);
 
       if (outcome === 'quit') {
         break;
       }
-
-      this.rl.prompt();
     }
 
-    this.rl.close();
+    this.input.close();
     this.ux.log(messages.getMessage('info.exiting'));
   }
 
-  private onInterrupt(): void {
-    this.rl.write(null, { ctrl: true, name: 'u' });
-    process.stdout.write('\n');
+  /**
+   * The custom line editor drives interactive terminals; anything it cannot
+   * serve (non-TTY, dumb terminal, RAVEN_SOQL_PLAIN=1) gets plain readline.
+   */
+  private createInput(): ReplInput {
+    const complete: LineEditorCompleter = (lineToCursor, fullLine) => this.complete(lineToCursor, fullLine);
 
+    if (!lineEditorEngages(process.stdin, process.stdout, process.env)) {
+      return new ReadlineReplInput(complete);
+    }
+
+    // Chalk already detects NO_COLOR and friends; without color support the
+    // editor stays active but paints plain text.
+    const highlight =
+      chalk.level > 0
+        ? (line: string): string =>
+            highlightSoql(line, {
+              openString: this.buffer.length > 0 && endsInsideSoqlString(this.buffer.join('\n')),
+            })
+        : undefined;
+
+    return new LineEditor({ input: process.stdin, output: process.stdout, complete, highlight });
+  }
+
+  private onInterrupt(): void {
     if (this.buffer.length > 0) {
       this.buffer = [];
-      this.rl.setPrompt(mainPrompt);
       this.ux.log(chalk.dim(messages.getMessage('info.abandoned')));
     } else {
       this.ux.log(chalk.dim(messages.getMessage('info.interruptHint')));
     }
-
-    this.rl.prompt();
   }
 
   private async handleLine(line: string): Promise<'continue' | 'quit'> {
@@ -294,13 +411,10 @@ class ReplSession {
     const input = this.buffer.join('\n');
 
     if (!isSoqlInputComplete(input)) {
-      this.rl.setPrompt(continuationPrompt);
-
       return 'continue';
     }
 
     this.buffer = [];
-    this.rl.setPrompt(mainPrompt);
 
     const query = collapseSoqlQuery(input);
 
@@ -377,16 +491,14 @@ class ReplSession {
   }
 
   /**
-   * Tab completion. Readline hands over the current line up to the cursor;
-   * earlier lines of a multi-line query come from the continuation buffer,
-   * and the full current line lets a FROM typed after the cursor count.
+   * Tab completion. The input layer hands over the current line up to the
+   * cursor; earlier lines of a multi-line query come from the continuation
+   * buffer, and the full current line lets a FROM typed after the cursor count.
    */
-  private complete(lineToCursor: string): [string[], string] {
-    const currentLine = (this.rl as ReadlineWithHistory | undefined)?.line ?? lineToCursor;
-
+  private complete(lineToCursor: string, fullLine: string): [string[], string] {
     return completeSoql(
       [...this.buffer, lineToCursor].join('\n'),
-      [...this.buffer, currentLine].join('\n'),
+      [...this.buffer, fullLine].join('\n'),
       this.describes
     );
   }
@@ -450,14 +562,14 @@ class ReplSession {
 
     const pager = splitCommandLine(process.env.PAGER) ?? { command: 'less', args: ['-SRFX'] };
 
-    this.rl.pause();
+    this.input.suspend();
 
     const result = spawnSync(pager.command, pager.args, {
       input: `${text}\n`,
       stdio: ['pipe', 'inherit', 'inherit'],
     });
 
-    this.rl.resume();
+    this.input.restore();
 
     if (result.error != null) {
       this.ux.log(text);
@@ -521,11 +633,11 @@ class ReplSession {
 
     await writeFile(file, `${initial}\n`, 'utf8');
 
-    this.rl.pause();
+    this.input.suspend();
 
     const result = spawnSync(editor.command, [...editor.args, file], { stdio: 'inherit' });
 
-    this.rl.resume();
+    this.input.restore();
 
     if (result.error != null || (result.status ?? 0) !== 0) {
       throw messages.createError('error.editorFailed');
@@ -540,7 +652,6 @@ class ReplSession {
     }
 
     this.buffer = [];
-    this.rl.setPrompt(mainPrompt);
     await this.recordHistory(edited);
     await this.executeAndRender(edited);
   }
@@ -555,6 +666,6 @@ class ReplSession {
       // History is a convenience - never let it break the session.
     }
 
-    this.rl.history = [...this.historyEntries].reverse();
+    this.input.setHistory(this.historyEntries);
   }
 }

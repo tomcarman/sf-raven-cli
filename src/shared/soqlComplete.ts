@@ -68,10 +68,10 @@ const aggregateFunctions = ['AVG(', 'COUNT(', 'COUNT_DISTINCT(', 'MAX(', 'MIN(',
 /** Fields every polymorphic reference exposes via the Name pseudo-object. */
 const polymorphicNameFields = ['Id', 'Name', 'Type', 'FirstName', 'LastName', 'Title', 'Email', 'Phone', 'Alias'];
 
-type ScanWord = { text: string; start: number; end: number; depth: number };
+export type ScanWord = { text: string; start: number; end: number; depth: number };
 type ScanParen = { open: number; close?: number; depth: number };
-type ScanString = { open: number; close?: number };
-type ScanState = { words: ScanWord[]; parens: ScanParen[]; strings: ScanString[] };
+export type ScanString = { open: number; close?: number };
+export type ScanState = { words: ScanWord[]; parens: ScanParen[]; strings: ScanString[] };
 
 const wordChar = /[A-Za-z0-9_]/;
 const identifierPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -82,9 +82,10 @@ export const sobjectNamePattern = /^[A-Za-z][A-Za-z0-9_]*$/;
 /**
  * Splits the input into word tokens tagged with their paren depth, plus the
  * paren pairs and string-literal spans themselves. Backslash escapes inside
- * literals are honoured, matching the REPL's balance scanner.
+ * literals are honoured, matching the REPL's balance scanner. Exported as the
+ * lexer behind the REPL's syntax highlighting as well.
  */
-const scan = (text: string): ScanState => {
+export const scanSoql = (text: string): ScanState => {
   const words: ScanWord[] = [];
   const parens: ScanParen[] = [];
   const strings: ScanString[] = [];
@@ -506,7 +507,7 @@ const clauseContext = (site: CursorSite, insideFunction: boolean): SoqlCompletio
  * after the cursor still names the object being completed.
  */
 export const classifySoqlContext = (before: string, full: string): SoqlCompletionContext => {
-  const state = scan(full);
+  const state = scanSoql(full);
   const cursor = before.length;
   const stack = parenStackAt(state, cursor);
   const subqueryStack = stack.filter((paren) => isSubqueryParen(state, paren));
@@ -734,7 +735,7 @@ export const completeSoql = (before: string, full: string, source: SoqlCompletio
 
 /** The object named by the outer query's FROM clause, if one is present. */
 export const outerSoqlFromObject = (query: string): string | undefined => {
-  const state = scan(query);
+  const state = scanSoql(query);
 
   return fromWordOf(state.words.filter((word) => word.depth === 0));
 };
