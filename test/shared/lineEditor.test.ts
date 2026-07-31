@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { LineEditor, lineEditorEngages, type LineEditorInput } from '../../src/shared/lineEditor.js';
+import { LineEditor, lineEditorEngages, type LineEditorInput, type LineEditorResult } from '../../src/shared/lineEditor.js';
 
 /** A fake stdout: captures writes, reports a width, can emit 'resize'. */
 class FakeOutput extends EventEmitter {
@@ -54,6 +54,8 @@ const keys = {
   ctrlP: '\u0010',
   ctrlU: '\u0015',
   ctrlW: '\u0017',
+  ctrlG: '\u0007',
+  ctrlR: '\u0012',
   ctrlLeft: `${esc}[1;5D`,
   ctrlRight: `${esc}[1;5C`,
   ctrlDelete: `${esc}[3;5~`,
@@ -671,6 +673,199 @@ describe('LineEditor', () => {
       await press(keys.tab);
       editor.suspend();
       assert.equal(editor.menu, undefined);
+    });
+  });
+
+  describe('reverse history search', () => {
+    const searchPrompt = (filter: string, match: string): string => `(reverse-i-search)\`${filter}': ${match}`;
+    const failedPrompt = (filter: string, match: string): string => `(failed reverse-i-search)\`${filter}': ${match}`;
+
+    const pressEscape = async (harness: Harness): Promise<void> => {
+      harness.input.emit('keypress', esc, { name: 'escape', sequence: esc });
+      await new Promise((resolve) => {
+        setImmediate(resolve);
+      });
+    };
+
+    const makeSearchEditor = (): Harness & { read: Promise<LineEditorResult> } => {
+      const harness = makeEditor();
+
+      harness.editor.setHistory(['SELECT Id FROM Account', '\\help', 'SELECT Name FROM Contact']);
+
+      return { ...harness, read: harness.editor.readLine('soql> ') };
+    };
+
+    it('enters search mode on Ctrl+R and filters case-insensitively as you type', async () => {
+      const { editor, output, press } = makeSearchEditor();
+
+      await press(keys.ctrlR);
+      assert.deepEqual(editor.search, { filter: '', match: '', failed: false });
+      assert.equal(output.lastChunk.includes(searchPrompt('', '')), true);
+
+      await press('sel');
+      assert.deepEqual(editor.search, { filter: 'sel', match: 'SELECT Name FROM Contact', failed: false });
+      assert.equal(output.lastChunk.includes(searchPrompt('sel', 'SELECT Name FROM Contact')), true);
+    });
+
+    it('keeps the typed line intact while searching', async () => {
+      const { editor, press } = makeSearchEditor();
+
+      await press('typed');
+      await press(keys.ctrlR);
+      await press('help');
+      assert.equal(editor.search?.match, '\\help');
+      assert.equal(editor.line, 'typed');
+    });
+
+    it('steps to older matches on repeated Ctrl+R and fails past the oldest', async () => {
+      const { editor, output, press } = makeSearchEditor();
+
+      await press(keys.ctrlR);
+      await press('select');
+      assert.equal(editor.search?.match, 'SELECT Name FROM Contact');
+
+      await press(keys.ctrlR);
+      assert.deepEqual(editor.search, { filter: 'select', match: 'SELECT Id FROM Account', failed: false });
+
+      await press(keys.ctrlR);
+      assert.deepEqual(editor.search, { filter: 'select', match: 'SELECT Id FROM Account', failed: true });
+      assert.equal(output.lastChunk.includes(failedPrompt('select', 'SELECT Id FROM Account')), true);
+    });
+
+    it('steps through everything when the filter is empty', async () => {
+      const { editor, press } = makeSearchEditor();
+
+      await press(keys.ctrlR);
+      await press(keys.ctrlR);
+      assert.equal(editor.search?.match, 'SELECT Name FROM Contact');
+      await press(keys.ctrlR);
+      assert.equal(editor.search?.match, '\\help');
+    });
+
+    it('turns failed when nothing matches and recovers on Backspace', async () => {
+      const { editor, press } = makeSearchEditor();
+
+      await press(keys.ctrlR);
+      await press('select');
+      await press(keys.ctrlR);
+      assert.equal(editor.search?.match, 'SELECT Id FROM Account');
+
+      await press('z');
+      assert.deepEqual(editor.search, { filter: 'selectz', match: 'SELECT Id FROM Account', failed: true });
+
+      // Backspace shrinks the filter and stays on the match it was parked on.
+      await press(keys.backspace);
+      assert.deepEqual(editor.search, { filter: 'select', match: 'SELECT Id FROM Account', failed: false });
+    });
+
+    it('accepts into the editor on Enter without submitting; a second Enter submits', async () => {
+      const { editor, press, read } = makeSearchEditor();
+
+      await press(keys.ctrlR);
+      await press('contact');
+      await press(keys.enter);
+      assert.equal(editor.search, undefined);
+      assert.equal(editor.line, 'SELECT Name FROM Contact');
+      assert.equal(editor.cursor, 'SELECT Name FROM Contact'.length);
+
+      await press(keys.enter);
+      assert.deepEqual(await read, { kind: 'line', text: 'SELECT Name FROM Contact' });
+    });
+
+    it('accepts into the editor on Tab and Right with the cursor at the end', async () => {
+      const tab = makeSearchEditor();
+
+      await tab.press(keys.ctrlR);
+      await tab.press('help');
+      await tab.press(keys.tab);
+      assert.equal(tab.editor.search, undefined);
+      assert.equal(tab.editor.line, '\\help');
+      assert.equal(tab.editor.cursor, 5);
+      assert.equal(tab.editor.menu, undefined);
+
+      const right = makeSearchEditor();
+
+      await right.press(keys.ctrlR);
+      await right.press('help');
+      await right.press(keys.right);
+      assert.equal(right.editor.search, undefined);
+      assert.equal(right.editor.line, '\\help');
+      assert.equal(right.editor.cursor, 5);
+    });
+
+    it('cancels on Esc, Ctrl+C, and Ctrl+G, restoring the pre-search line', async () => {
+      const cancels: Array<(harness: Harness) => Promise<void>> = [
+        pressEscape,
+        async (harness): Promise<void> => harness.press(keys.ctrlC),
+        async (harness): Promise<void> => harness.press(keys.ctrlG),
+      ];
+
+      for (const cancel of cancels) {
+        const harness = makeSearchEditor();
+
+        // eslint-disable-next-line no-await-in-loop
+        await harness.press('WHERE');
+        // eslint-disable-next-line no-await-in-loop
+        await harness.press(keys.ctrlR);
+        // eslint-disable-next-line no-await-in-loop
+        await harness.press('help');
+        assert.equal(harness.editor.search?.match, '\\help');
+        // eslint-disable-next-line no-await-in-loop
+        await cancel(harness);
+        assert.equal(harness.editor.search, undefined);
+        assert.equal(harness.editor.line, 'WHERE');
+      }
+    });
+
+    it('does not resolve the read when Ctrl+C cancels a search', async () => {
+      const { editor, press } = makeEditor();
+      const read = editor.readLine('soql> ');
+
+      editor.setHistory(['SELECT one']);
+      await press(keys.ctrlR);
+      await press(keys.ctrlC);
+      assert.equal(editor.search, undefined);
+
+      await press(keys.enter);
+      assert.deepEqual(await read, { kind: 'line', text: '' });
+    });
+
+    it('accepts the match and applies other editing keys', async () => {
+      const { editor, press } = makeSearchEditor();
+
+      await press(keys.ctrlR);
+      await press('account');
+      await press(keys.ctrlA);
+      assert.equal(editor.search, undefined);
+      assert.equal(editor.line, 'SELECT Id FROM Account');
+      assert.equal(editor.cursor, 0);
+    });
+
+    it('is mutually exclusive with the completion menu', async () => {
+      const { editor, press } = makeEditor({
+        complete: (): [string[], string] => [['Name', 'NumberOfEmployees'], ''],
+      });
+
+      editor.setHistory(['SELECT one']);
+      void editor.readLine('> ');
+      await press(keys.tab);
+      assert.notEqual(editor.menu, undefined);
+
+      await press(keys.ctrlR);
+      assert.equal(editor.menu, undefined);
+      assert.notEqual(editor.search, undefined);
+    });
+
+    it('does nothing on Ctrl+R without history until something matches', async () => {
+      const { editor, press } = makeEditor();
+
+      editor.setHistory([]);
+      void editor.readLine('> ');
+      await press(keys.ctrlR);
+      assert.deepEqual(editor.search, { filter: '', match: '', failed: false });
+
+      await press('x');
+      assert.deepEqual(editor.search, { filter: 'x', match: '', failed: true });
     });
   });
 

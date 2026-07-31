@@ -100,6 +100,22 @@ type MenuState = {
   scrollTop: number;
 };
 
+/**
+ * The active Ctrl+R reverse search. `matchIndex` points into the newest-first
+ * history at the entry currently shown; undefined means no match has been
+ * found yet, so the pre-search line stays on display. `failed` marks a filter
+ * (or a step) that found nothing - the shown entry does not move.
+ */
+type SearchState = {
+  filter: string;
+  matchIndex: number | undefined;
+  failed: boolean;
+};
+
+/** The bash-style search prompt; the matched entry renders right after it. */
+const searchPromptFor = (state: SearchState): string =>
+  `(${state.failed ? 'failed ' : ''}reverse-i-search)\`${state.filter}': `;
+
 const commonPrefix = (candidates: readonly string[]): string => {
   let prefix = candidates[0];
 
@@ -141,6 +157,7 @@ export class LineEditor {
   private pasting = false;
   private sawReturnAt = 0;
   private menuState: MenuState | undefined;
+  private searchState: SearchState | undefined;
 
   public constructor(options: LineEditorOptions) {
     this.input = options.input;
@@ -176,6 +193,19 @@ export class LineEditor {
     return { rows: this.menuCandidates(this.menuState), selected: this.menuState.selected };
   }
 
+  /** The active reverse search's filter, shown match, and failed flag, if searching. */
+  public get search(): { filter: string; match: string; failed: boolean } | undefined {
+    if (this.searchState == null) {
+      return undefined;
+    }
+
+    return {
+      filter: this.searchState.filter,
+      match: this.searchText(this.searchState),
+      failed: this.searchState.failed,
+    };
+  }
+
   private get columns(): number {
     const columns = this.output.columns ?? 0;
 
@@ -199,6 +229,7 @@ export class LineEditor {
     this.historyIndex = -1;
     this.searchPrefix = undefined;
     this.menuState = undefined;
+    this.searchState = undefined;
     this.active = true;
 
     const promise = new Promise<LineEditorResult>((resolve) => {
@@ -219,6 +250,7 @@ export class LineEditor {
   /** Hands the terminal to an external command ($EDITOR, $PAGER). */
   public suspend(): void {
     this.menuState = undefined;
+    this.searchState = undefined;
 
     if (this.input.setRawMode != null) {
       this.output.write(disableBracketedPaste);
@@ -286,9 +318,12 @@ export class LineEditor {
    */
   private render(): void {
     const cols = this.columns;
-    const visibleLength = this.prompt.length + this.currentLine.length;
+    const prompt = this.searchState == null ? this.prompt : searchPromptFor(this.searchState);
+    const line = this.searchState == null ? this.currentLine : this.searchText(this.searchState);
+    const cursor = this.searchState == null ? this.currentCursor : line.length;
+    const visibleLength = prompt.length + line.length;
     const endRow = Math.floor(visibleLength / cols);
-    const cursorPos = this.prompt.length + this.currentCursor;
+    const cursorPos = prompt.length + cursor;
     const cursorRow = Math.floor(cursorPos / cols);
     const cursorCol = cursorPos % cols;
 
@@ -299,7 +334,7 @@ export class LineEditor {
     }
 
     out += '\r\u001b[J';
-    out += this.prompt + (this.highlight == null ? this.currentLine : this.highlight(this.currentLine));
+    out += prompt + (this.highlight == null ? line : this.highlight(line));
 
     if (visibleLength > 0 && visibleLength % cols === 0) {
       out += ' ';
@@ -347,6 +382,7 @@ export class LineEditor {
     this.currentCursor = 0;
     this.prevCursorRow = 0;
     this.menuState = undefined;
+    this.searchState = undefined;
     resolve?.(result);
   }
 
@@ -361,6 +397,10 @@ export class LineEditor {
   /** Handles the bracketed-paste markers; a starting paste closes the menu. */
   private handlePasteMarker(key: LineEditorKey): boolean {
     if (key.name === 'paste-start') {
+      if (this.searchState != null) {
+        this.acceptSearch(this.searchState);
+      }
+
       this.menuState = undefined;
       this.pasting = true;
 
@@ -389,20 +429,11 @@ export class LineEditor {
       return;
     }
 
-    // Substring search: the text left of the cursor filters Up/Down history
-    // navigation until any other key ends the search - as Node readline does.
-    const plainUpDown =
-      (key.name === 'up' || key.name === 'down') && key.ctrl !== true && key.meta !== true && key.shift !== true;
-
-    if (plainUpDown) {
-      this.searchPrefix ??= this.currentLine.slice(0, this.currentCursor);
-    } else if (this.searchPrefix != null) {
-      this.searchPrefix = undefined;
-
-      if (this.historyIndex === this.history.length) {
-        this.historyIndex = -1;
-      }
+    if (this.searchState != null && this.handleSearchKey(this.searchState, str, key)) {
+      return;
     }
+
+    this.updateSearchPrefix(key);
 
     if (this.pasting) {
       this.handlePasteKey(str, key);
@@ -422,6 +453,25 @@ export class LineEditor {
       this.handleMetaKey(key);
     } else {
       this.handlePlainKey(str, key);
+    }
+  }
+
+  /**
+   * Substring search: the text left of the cursor filters Up/Down history
+   * navigation until any other key ends the search - as Node readline does.
+   */
+  private updateSearchPrefix(key: LineEditorKey): void {
+    const plainUpDown =
+      (key.name === 'up' || key.name === 'down') && key.ctrl !== true && key.meta !== true && key.shift !== true;
+
+    if (plainUpDown) {
+      this.searchPrefix ??= this.currentLine.slice(0, this.currentCursor);
+    } else if (this.searchPrefix != null) {
+      this.searchPrefix = undefined;
+
+      if (this.historyIndex === this.history.length) {
+        this.historyIndex = -1;
+      }
     }
   }
 
@@ -463,7 +513,39 @@ export class LineEditor {
     }
   }
 
+  /** The Ctrl bindings that only move the cursor; true when one applied. */
+  private handleCtrlMoveKey(name: string | undefined): boolean {
+    switch (name) {
+      case 'a':
+        this.moveCursor(-Infinity);
+        break;
+      case 'e':
+        this.moveCursor(Infinity);
+        break;
+      case 'b':
+        this.moveCursor(-1);
+        break;
+      case 'f':
+        this.moveCursor(1);
+        break;
+      case 'left':
+        this.wordLeft();
+        break;
+      case 'right':
+        this.wordRight();
+        break;
+      default:
+        return false;
+    }
+
+    return true;
+  }
+
   private handleCtrlKey(key: LineEditorKey): void {
+    if (this.handleCtrlMoveKey(key.name)) {
+      return;
+    }
+
     switch (key.name) {
       case 'c':
         this.interrupt();
@@ -486,18 +568,6 @@ export class LineEditor {
       case 'k':
         this.deleteLineRight();
         break;
-      case 'a':
-        this.moveCursor(-Infinity);
-        break;
-      case 'e':
-        this.moveCursor(Infinity);
-        break;
-      case 'b':
-        this.moveCursor(-1);
-        break;
-      case 'f':
-        this.moveCursor(1);
-        break;
       case 'l':
         this.output.write('\u001b[1;1H\u001b[J');
         this.prevCursorRow = 0;
@@ -509,18 +579,15 @@ export class LineEditor {
       case 'p':
         this.historyPrev();
         break;
+      case 'r':
+        this.startSearch();
+        break;
       case 'w':
       case 'backspace':
         this.deleteWordLeft();
         break;
       case 'delete':
         this.deleteWordRight();
-        break;
-      case 'left':
-        this.wordLeft();
-        break;
-      case 'right':
-        this.wordRight();
         break;
       default:
         break;
@@ -757,6 +824,128 @@ export class LineEditor {
     this.currentLine = text;
     this.currentCursor = text.length;
     this.render();
+  }
+
+  /**
+   * Ctrl+R reverse history search - a self-contained mode that owns the
+   * display until it ends. `currentLine` stays untouched while searching
+   * (cancel restores it for free); the shown entry lives in the search state.
+   * Matching is case-insensitive substring, newest first. Enter, Tab, and
+   * Right accept the match into the editor for review - never execute - Esc,
+   * Ctrl+C, and Ctrl+G cancel, and any other editing key accepts the match
+   * and then applies itself, as bash does.
+   */
+  private handleSearchKey(state: SearchState, str: string | undefined, key: LineEditorKey): boolean {
+    if (key.name === 'escape' || (key.ctrl === true && (key.name === 'c' || key.name === 'g'))) {
+      this.searchState = undefined;
+      this.render();
+
+      return true;
+    }
+
+    if (key.ctrl === true && key.name === 'r') {
+      this.stepSearch(state);
+
+      return true;
+    }
+
+    if ((key.ctrl !== true && key.name === 'backspace') || (key.ctrl === true && key.name === 'h')) {
+      this.shrinkSearch(state);
+
+      return true;
+    }
+
+    if (key.name === 'return' || key.name === 'enter' || key.name === 'tab' || key.name === 'right') {
+      this.acceptSearch(state);
+      this.render();
+
+      return true;
+    }
+
+    const plain = key.ctrl !== true && key.meta !== true;
+
+    if (plain && typeof str === 'string' && str.length > 0 && !lineEndingPattern.test(str)) {
+      this.extendSearch(state, sanitizeInsert(str));
+
+      return true;
+    }
+
+    this.acceptSearch(state);
+    this.render();
+
+    return false;
+  }
+
+  private startSearch(): void {
+    this.searchState = { filter: '', matchIndex: undefined, failed: false };
+    this.render();
+  }
+
+  /** The entry the search displays: the current match, else the pre-search line. */
+  private searchText(state: SearchState): string {
+    return state.matchIndex == null ? this.currentLine : this.history[state.matchIndex];
+  }
+
+  /** The newest match at or after `from` that contains the filter. */
+  private findSearchMatch(filter: string, from: number): number | undefined {
+    const needle = filter.toLowerCase();
+
+    for (let index = Math.max(from, 0); index < this.history.length; index++) {
+      if (this.history[index].toLowerCase().includes(needle)) {
+        return index;
+      }
+    }
+
+    return undefined;
+  }
+
+  /** Ctrl+R while searching: step to the next older match, or turn failed. */
+  private stepSearch(state: SearchState): void {
+    const found = this.findSearchMatch(state.filter, (state.matchIndex ?? -1) + 1);
+
+    this.searchState = found == null ? { ...state, failed: true } : { filter: state.filter, matchIndex: found, failed: false };
+    this.render();
+  }
+
+  /**
+   * A longer filter searches onward from the current match - the shown entry
+   * keeps winning while it still contains the filter, exactly bash's feel.
+   */
+  private extendSearch(state: SearchState, text: string): void {
+    const filter = state.filter + text;
+    const found = this.findSearchMatch(filter, state.matchIndex ?? 0);
+
+    this.searchState = found == null ? { ...state, filter, failed: true } : { filter, matchIndex: found, failed: false };
+    this.render();
+  }
+
+  /**
+   * Backspace: shrinking the filter only widens the match set, so the shown
+   * entry stays put whenever it still matches - which also walks a failed
+   * search back to the match it was parked on.
+   */
+  private shrinkSearch(state: SearchState): void {
+    if (state.filter === '') {
+      return;
+    }
+
+    const filter = state.filter.slice(0, -1);
+    const kept =
+      state.matchIndex != null && this.history[state.matchIndex].toLowerCase().includes(filter.toLowerCase())
+        ? state.matchIndex
+        : this.findSearchMatch(filter, 0);
+
+    this.searchState = { filter, matchIndex: kept, failed: kept == null };
+    this.render();
+  }
+
+  /** Ends the search with the shown entry in the editor, cursor at the end. */
+  private acceptSearch(state: SearchState): void {
+    const text = this.searchText(state);
+
+    this.searchState = undefined;
+    this.currentLine = text;
+    this.currentCursor = text.length;
   }
 
   /**
