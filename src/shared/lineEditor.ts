@@ -66,6 +66,10 @@ const disableBracketedPaste = '\u001b[?2004l';
 
 const lineEndingPattern = /\r\n|\n|\r/;
 
+/** True for keypress data that should insert as text: non-empty, no line endings. */
+const isInsertableText = (str: string | undefined): str is string =>
+  typeof str === 'string' && str.length > 0 && !lineEndingPattern.test(str);
+
 /** Word-boundary lengths use Node readline's exact regexes. */
 const wordLeftLength = (leading: string): number => {
   const reversed = [...leading].reverse().join('');
@@ -152,7 +156,7 @@ export class LineEditor {
   /** Newest-first, mirroring Node readline's internal ordering. */
   private history: string[] = [];
   private historyIndex = -1;
-  private searchPrefix: string | undefined;
+  private historyPrefix: string | undefined;
 
   private pasting = false;
   private sawReturnAt = 0;
@@ -227,7 +231,7 @@ export class LineEditor {
     this.currentCursor = 0;
     this.prevCursorRow = 0;
     this.historyIndex = -1;
-    this.searchPrefix = undefined;
+    this.historyPrefix = undefined;
     this.menuState = undefined;
     this.searchState = undefined;
     this.active = true;
@@ -433,7 +437,7 @@ export class LineEditor {
       return;
     }
 
-    this.updateSearchPrefix(key);
+    this.updateHistoryPrefix(key);
 
     if (this.pasting) {
       this.handlePasteKey(str, key);
@@ -460,14 +464,14 @@ export class LineEditor {
    * Substring search: the text left of the cursor filters Up/Down history
    * navigation until any other key ends the search - as Node readline does.
    */
-  private updateSearchPrefix(key: LineEditorKey): void {
+  private updateHistoryPrefix(key: LineEditorKey): void {
     const plainUpDown =
       (key.name === 'up' || key.name === 'down') && key.ctrl !== true && key.meta !== true && key.shift !== true;
 
     if (plainUpDown) {
-      this.searchPrefix ??= this.currentLine.slice(0, this.currentCursor);
-    } else if (this.searchPrefix != null) {
-      this.searchPrefix = undefined;
+      this.historyPrefix ??= this.currentLine.slice(0, this.currentCursor);
+    } else if (this.historyPrefix != null) {
+      this.historyPrefix = undefined;
 
       if (this.historyIndex === this.history.length) {
         this.historyIndex = -1;
@@ -793,7 +797,7 @@ export class LineEditor {
       return;
     }
 
-    const search = this.searchPrefix ?? '';
+    const search = this.historyPrefix ?? '';
     let index = this.historyIndex + 1;
 
     while (index < this.history.length && (!this.history[index].startsWith(search) || this.history[index] === this.currentLine)) {
@@ -809,7 +813,7 @@ export class LineEditor {
       return;
     }
 
-    const search = this.searchPrefix ?? '';
+    const search = this.historyPrefix ?? '';
     let index = this.historyIndex - 1;
 
     while (index >= 0 && (!this.history[index].startsWith(search) || this.history[index] === this.currentLine)) {
@@ -857,21 +861,17 @@ export class LineEditor {
 
     if (key.name === 'return' || key.name === 'enter' || key.name === 'tab' || key.name === 'right') {
       this.acceptSearch(state);
-      this.render();
 
       return true;
     }
 
-    const plain = key.ctrl !== true && key.meta !== true;
-
-    if (plain && typeof str === 'string' && str.length > 0 && !lineEndingPattern.test(str)) {
+    if (key.ctrl !== true && key.meta !== true && isInsertableText(str)) {
       this.extendSearch(state, sanitizeInsert(str));
 
       return true;
     }
 
     this.acceptSearch(state);
-    this.render();
 
     return false;
   }
@@ -901,10 +901,7 @@ export class LineEditor {
 
   /** Ctrl+R while searching: step to the next older match, or turn failed. */
   private stepSearch(state: SearchState): void {
-    const found = this.findSearchMatch(state.filter, (state.matchIndex ?? -1) + 1);
-
-    this.searchState = found == null ? { ...state, failed: true } : { filter: state.filter, matchIndex: found, failed: false };
-    this.render();
+    this.moveSearch(state, state.filter, (state.matchIndex ?? -1) + 1);
   }
 
   /**
@@ -912,8 +909,12 @@ export class LineEditor {
    * keeps winning while it still contains the filter, exactly bash's feel.
    */
   private extendSearch(state: SearchState, text: string): void {
-    const filter = state.filter + text;
-    const found = this.findSearchMatch(filter, state.matchIndex ?? 0);
+    this.moveSearch(state, state.filter + text, state.matchIndex ?? 0);
+  }
+
+  /** Re-searches from `from`; on failure the shown entry stays parked. */
+  private moveSearch(state: SearchState, filter: string, from: number): void {
+    const found = this.findSearchMatch(filter, from);
 
     this.searchState = found == null ? { ...state, filter, failed: true } : { filter, matchIndex: found, failed: false };
     this.render();
@@ -944,8 +945,7 @@ export class LineEditor {
     const text = this.searchText(state);
 
     this.searchState = undefined;
-    this.currentLine = text;
-    this.currentCursor = text.length;
+    this.setLine(text);
   }
 
   /**
@@ -1023,7 +1023,7 @@ export class LineEditor {
       return true;
     }
 
-    if (typeof str === 'string' && str.length > 0 && !lineEndingPattern.test(str)) {
+    if (isInsertableText(str)) {
       this.insert(sanitizeInsert(str));
       this.refilterMenu(menu);
 

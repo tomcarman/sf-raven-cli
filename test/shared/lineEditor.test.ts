@@ -71,6 +71,14 @@ const keys = {
 
 const harnesses: Harness[] = [];
 
+/** A raw ESC byte would stall the decoder awaiting a sequence; emit the key directly. */
+const pressEscape = async (harness: Harness): Promise<void> => {
+  harness.input.emit('keypress', esc, { name: 'escape', sequence: esc });
+  await new Promise((resolve) => {
+    setImmediate(resolve);
+  });
+};
+
 const makeEditor = (options: Partial<ConstructorParameters<typeof LineEditor>[0]> = {}): Harness => {
   const input = new PassThrough();
   const output = new FakeOutput();
@@ -477,13 +485,6 @@ describe('LineEditor', () => {
         return [candidates.filter((candidate) => candidate.toLowerCase().startsWith(fragment.toLowerCase())), fragment];
       };
 
-    const pressEscape = async (harness: Harness): Promise<void> => {
-      harness.input.emit('keypress', esc, { name: 'escape', sequence: esc });
-      await new Promise((resolve) => {
-        setImmediate(resolve);
-      });
-    };
-
     it('completes the common prefix, then opens the menu below the line', async () => {
       const { editor, output, press } = makeEditor({ complete: fragmentCompleter(['Name', 'NumberOfEmployees']) });
 
@@ -679,13 +680,6 @@ describe('LineEditor', () => {
   describe('reverse history search', () => {
     const searchPrompt = (filter: string, match: string): string => `(reverse-i-search)\`${filter}': ${match}`;
     const failedPrompt = (filter: string, match: string): string => `(failed reverse-i-search)\`${filter}': ${match}`;
-
-    const pressEscape = async (harness: Harness): Promise<void> => {
-      harness.input.emit('keypress', esc, { name: 'escape', sequence: esc });
-      await new Promise((resolve) => {
-        setImmediate(resolve);
-      });
-    };
 
     const makeSearchEditor = (): Harness & { read: Promise<LineEditorResult> } => {
       const harness = makeEditor();
