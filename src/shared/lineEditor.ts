@@ -782,14 +782,25 @@ export class LineEditor {
     const start = this.currentCursor - fragment.length;
 
     if (prefix.toLowerCase().startsWith(fragment.toLowerCase()) && prefix !== fragment) {
-      this.currentLine = this.currentLine.slice(0, start) + prefix + this.currentLine.slice(this.currentCursor);
-      this.currentCursor = start + prefix.length;
+      this.replaceToCursor(start, prefix);
     }
 
     if (candidates.length > 1) {
       this.menuState = { candidates, fragmentStart: start, selected: 0, scrollTop: 0 };
     }
 
+    this.render();
+  }
+
+  /** Replaces the span from `start` to the cursor, parking the cursor after it. */
+  private replaceToCursor(start: number, text: string): void {
+    this.currentLine = this.currentLine.slice(0, start) + text + this.currentLine.slice(this.currentCursor);
+    this.currentCursor = start + text.length;
+  }
+
+  /** Closes the menu; the repaint's downward clear erases its rows. */
+  private closeMenu(): void {
+    this.menuState = undefined;
     this.render();
   }
 
@@ -801,15 +812,13 @@ export class LineEditor {
    */
   private handleMenuKey(menu: MenuState, str: string | undefined, key: LineEditorKey): boolean {
     if (key.name === 'escape') {
-      this.menuState = undefined;
-      this.render();
+      this.closeMenu();
 
       return true;
     }
 
     if (key.ctrl === true || key.meta === true) {
-      this.menuState = undefined;
-      this.render();
+      this.closeMenu();
 
       return false;
     }
@@ -820,20 +829,19 @@ export class LineEditor {
 
     if (key.name === 'backspace') {
       this.deleteLeft();
-      this.refilterMenu();
+      this.refilterMenu(menu);
 
       return true;
     }
 
     if (typeof str === 'string' && str.length > 0 && !lineEndingPattern.test(str)) {
       this.insert(sanitizeInsert(str));
-      this.refilterMenu();
+      this.refilterMenu(menu);
 
       return true;
     }
 
-    this.menuState = undefined;
-    this.render();
+    this.closeMenu();
 
     return false;
   }
@@ -846,14 +854,14 @@ export class LineEditor {
       if (filtered.length === 1) {
         this.acceptMenu(menu, filtered[0]);
       } else {
-        this.moveMenuSelection(key.shift === true ? -1 : 1);
+        this.moveMenuSelection(menu, key.shift === true ? -1 : 1);
       }
 
       return true;
     }
 
     if (key.shift !== true && (key.name === 'up' || key.name === 'down')) {
-      this.moveMenuSelection(key.name === 'down' ? 1 : -1);
+      this.moveMenuSelection(menu, key.name === 'down' ? 1 : -1);
 
       return true;
     }
@@ -879,30 +887,22 @@ export class LineEditor {
   /** Replaces the fragment with the accepted candidate and closes the menu. */
   private acceptMenu(menu: MenuState, candidate: string): void {
     this.menuState = undefined;
-    this.currentLine =
-      this.currentLine.slice(0, menu.fragmentStart) + candidate + this.currentLine.slice(this.currentCursor);
-    this.currentCursor = menu.fragmentStart + candidate.length;
+    this.replaceToCursor(menu.fragmentStart, candidate);
     this.render();
   }
 
   /** Cycles the selection with wrap-around, scrolling to keep it visible. */
-  private moveMenuSelection(delta: number): void {
-    const menu = this.menuState;
+  private moveMenuSelection(menu: MenuState, delta: number): void {
+    const count = this.menuCandidates(menu).length;
 
-    if (menu == null) {
+    if (count === 0) {
       return;
     }
 
-    const count = this.menuCandidates(menu).length;
+    const selected = (menu.selected + delta + count) % count;
+    const scrollTop = Math.min(Math.max(menu.scrollTop, selected - menuMaxVisible + 1), selected);
 
-    menu.selected = (menu.selected + delta + count) % count;
-
-    if (menu.selected < menu.scrollTop) {
-      menu.scrollTop = menu.selected;
-    } else if (menu.selected >= menu.scrollTop + menuMaxVisible) {
-      menu.scrollTop = menu.selected - menuMaxVisible + 1;
-    }
-
+    this.menuState = { ...menu, selected, scrollTop };
     this.render();
   }
 
@@ -911,18 +911,11 @@ export class LineEditor {
    * fragment or nothing matches any more, otherwise reset the selection to
    * the top of the narrowed list.
    */
-  private refilterMenu(): void {
-    const menu = this.menuState;
-
-    if (menu == null) {
-      return;
-    }
-
+  private refilterMenu(menu: MenuState): void {
     if (this.currentCursor < menu.fragmentStart || this.menuCandidates(menu).length === 0) {
       this.menuState = undefined;
     } else {
-      menu.selected = 0;
-      menu.scrollTop = 0;
+      this.menuState = { ...menu, selected: 0, scrollTop: 0 };
     }
 
     this.render();
