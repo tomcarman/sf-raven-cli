@@ -33,6 +33,7 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 - **[sf raven event subscribe](#sf-raven-event-subscribe)** - _Subscribe to Platform Events, streamed to your terminal._
 - **[sf raven event publish](#sf-raven-event-publish)** - _Publish Platform Events from an inline payload or a JSON file._
 - **[sf raven deploy cancel](#sf-raven-deploy-cancel)** - _Query an org for pending or in progress Salesforce deployments, and cancel them._
+- **[sf raven soql](#sf-raven-soql)** - _Run SOQL queries in an interactive REPL - tab completion, syntax highlighting, history search - or one-shot from the shell._
 - **[sf raven query ids](#sf-raven-query-ids)** - _Run a SOQL query against a large list of Salesforce IDs._
 - **[sf raven query record](#sf-raven-query-record)** - _Fetch any record by id with full-field output, and its field history._
 - **[sf raven query recent](#sf-raven-query-recent)** - _Show the most recently created, or modified, records for an sObject._
@@ -788,6 +789,47 @@ EXAMPLES
   $ sf raven deploy cancel
 
   $ sf raven deploy cancel --target-org dev
+```
+
+### sf raven soql
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-soql.gif" alt="sf raven soql demo"/></details>
+
+Without a query argument, starts an interactive SOQL REPL: tab completion for objects and fields backed by cached describes, live syntax highlighting, multi-line input, per-org arrow-key history with Ctrl+R reverse search, an automatic LIMIT on unbounded queries, and automatic Tooling API fallback for setup entities. Results render as a table with a row number column, and meta-commands (type `\help`) act on the last result - open a row in the browser, expand it to a full record view, export to CSV, and more. Output taller than the terminal is paged automatically.
+
+With a query argument, runs the query once through the same pipeline and prints it in the chosen format.
+
+```
+USAGE
+  $ sf raven soql [QUERY] [--json] [--flags-dir <value>] [-o <value>] [-F table|json|csv|toon]
+
+ARGUMENTS
+  [QUERY]  SOQL query to run once; omit to start the interactive REPL.
+
+FLAGS
+  -F, --format=<option>     [default: table] Output format for one-shot mode: table, json (raw records array), csv, or toon (TOON-encoded records array). <options: table|json|csv|toon>
+  -o, --target-org=<value>  Login username or alias for the target org; defaults to the default org.
+
+GLOBAL FLAGS
+  --flags-dir=<value>  Import flag values from a directory.
+  --json               Format output as json.
+
+DESCRIPTION
+  Run SOQL queries in an interactive REPL, or one-shot from the shell.
+
+  Without a query argument, starts an interactive REPL with multi-line input, per-org arrow-key history with Ctrl+R reverse search, an automatic LIMIT on unbounded queries, and automatic Tooling API fallback for setup entities. Results render as a table with a row number column; meta-commands (type \help) act on the last result - open a row in the browser, expand it to a full record view, export to CSV, and more. With a query argument, runs the query once through the same pipeline and prints it in the chosen format.
+
+EXAMPLES
+  Start the REPL against the default org:
+  $ sf raven soql
+  Start the REPL against a specific org:
+  $ sf raven soql --target-org my-sandbox
+  Run a one-shot query:
+  $ sf raven soql "SELECT Id, Name FROM Account WHERE CreatedDate = TODAY"
+  Run a one-shot query as CSV for a spreadsheet:
+  $ sf raven soql "SELECT Id, Name FROM Account" --format csv
+  Run a one-shot query as JSON:
+  $ sf raven soql "SELECT Id, Name FROM Account" --json
 ```
 
 ### sf raven query ids
