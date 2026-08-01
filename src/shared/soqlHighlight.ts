@@ -149,7 +149,7 @@ const wordColor = (word: ScanWord): Colorize | undefined => {
   const upper = word.text.toUpperCase();
 
   if (soqlKeywords.has(upper)) {
-    return chalk.cyan;
+    return chalk.bold.cyan;
   }
 
   if (soqlFunctions.has(upper)) {

@@ -17,14 +17,14 @@ describe('highlightSoql', () => {
   it('colors keywords with the accent color', () => {
     assert.equal(
       highlightSoql('SELECT Id FROM Account'),
-      `${chalk.cyan('SELECT')} Id ${chalk.cyan('FROM')} Account`
+      `${chalk.bold.cyan('SELECT')} Id ${chalk.bold.cyan('FROM')} Account`
     );
   });
 
   it('colors string literals green, including unterminated ones', () => {
     assert.equal(
       highlightSoql("WHERE Name = 'Acme Inc'"),
-      `${chalk.cyan('WHERE')} Name = ${chalk.green("'Acme Inc'")}`
+      `${chalk.bold.cyan('WHERE')} Name = ${chalk.green("'Acme Inc'")}`
     );
     assert.equal(highlightSoql("Name = 'Acme"), `Name = ${chalk.green("'Acme")}`);
   });
@@ -34,7 +34,7 @@ describe('highlightSoql', () => {
   });
 
   it('colors number and date literals', () => {
-    assert.equal(highlightSoql('LIMIT 10'), `${chalk.cyan('LIMIT')} ${chalk.yellow('10')}`);
+    assert.equal(highlightSoql('LIMIT 10'), `${chalk.bold.cyan('LIMIT')} ${chalk.yellow('10')}`);
     assert.equal(
       highlightSoql('CreatedDate > 2026-07-31'),
       `CreatedDate > ${chalk.yellow('2026')}-${chalk.yellow('07')}-${chalk.yellow('31')}`
@@ -50,7 +50,7 @@ describe('highlightSoql', () => {
     assert.equal(highlightSoql('COUNT(Id)'), `${chalk.magenta('COUNT')}(Id)`);
     assert.equal(
       highlightSoql('GROUP BY CALENDAR_YEAR(CreatedDate)'),
-      `${chalk.cyan('GROUP')} ${chalk.cyan('BY')} ${chalk.magenta('CALENDAR_YEAR')}(CreatedDate)`
+      `${chalk.bold.cyan('GROUP')} ${chalk.bold.cyan('BY')} ${chalk.magenta('CALENDAR_YEAR')}(CreatedDate)`
     );
   });
 
@@ -61,7 +61,7 @@ describe('highlightSoql', () => {
   it('treats the line as string text while a previous line left one open', () => {
     assert.equal(
       highlightSoql("still text' AND Amount > 3", { openString: true }),
-      `${chalk.green("still text'")} ${chalk.cyan('AND')} Amount > ${chalk.yellow('3')}`
+      `${chalk.green("still text'")} ${chalk.bold.cyan('AND')} Amount > ${chalk.yellow('3')}`
     );
   });
 
