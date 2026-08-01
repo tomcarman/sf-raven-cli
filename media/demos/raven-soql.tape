@@ -26,14 +26,31 @@ Wait+Screen@120s /soql>/
 Show
 Sleep 1500ms
 
-# Query with tab completion and live syntax highlighting.
+# Query with tab completion and live syntax highlighting: object menu,
+# unique-field insert, then picklist values.
 Type "SELECT Id, Name, Industry FROM Acco"
 Sleep 800ms
 Tab
 Sleep 2500ms
 Enter
 Sleep 800ms
-Type ` WHERE Industry = 'Energy' LIMIT 5`
+Type " WHERE Ind"
+Sleep 600ms
+Tab
+Hide
+Sleep 1500ms
+Show
+Tab
+Sleep 1200ms
+Type " = "
+Sleep 600ms
+Tab
+Sleep 2500ms
+Type "'Ener"
+Sleep 1500ms
+Tab
+Sleep 1000ms
+Type " LIMIT 5"
 Sleep 1500ms
 Enter
 Hide
