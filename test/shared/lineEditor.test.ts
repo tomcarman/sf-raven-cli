@@ -474,6 +474,7 @@ describe('LineEditor', () => {
 
   describe('completion menu', () => {
     const inverse = (text: string): string => `${esc}[7m${text}${esc}[27m`;
+    const dim = (text: string): string => `${esc}[2m${text}${esc}[22m`;
     const shiftTab = `${esc}[Z`;
 
     /** A completer shaped like completeSoql: case-insensitive prefix matches. */
@@ -629,9 +630,10 @@ describe('LineEditor', () => {
       void editor.readLine('> ');
       await press(keys.tab);
       assert.equal(editor.line, 'Item');
-      assert.equal(output.lastChunk.split('\r\n').length - 1, 10);
+      assert.equal(output.lastChunk.split('\r\n').length - 1, 11);
       assert.equal(output.lastChunk.includes('Item10'), true);
       assert.equal(output.lastChunk.includes('Item11'), false);
+      assert.equal(output.lastChunk.includes(dim('1/15')), true);
 
       for (let presses = 0; presses < 10; presses++) {
         // eslint-disable-next-line no-await-in-loop
@@ -642,6 +644,16 @@ describe('LineEditor', () => {
       assert.equal(output.lastChunk.includes(inverse('Item11')), true);
       assert.equal(output.lastChunk.includes('Item01'), false);
       assert.equal(output.lastChunk.includes('Item02'), true);
+      assert.equal(output.lastChunk.includes(dim('11/15')), true);
+    });
+
+    it('omits the scroll counter when every candidate fits in the menu', async () => {
+      const candidates = Array.from({ length: 10 }, (_, index) => `Item${String(index + 1).padStart(2, '0')}`);
+      const { editor, output, press } = makeEditor({ complete: fragmentCompleter(candidates) });
+
+      void editor.readLine('> ');
+      await press(keys.tab);
+      assert.equal(output.lastChunk.includes(`${esc}[2m`), false);
     });
 
     it('truncates menu rows to the terminal width', async () => {

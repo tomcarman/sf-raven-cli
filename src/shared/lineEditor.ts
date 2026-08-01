@@ -91,6 +91,8 @@ const menuMaxVisible = 10;
 
 const inverseOn = '\u001b[7m';
 const inverseOff = '\u001b[27m';
+const dimOn = '\u001b[2m';
+const dimOff = '\u001b[22m';
 
 /**
  * The open completion menu. `candidates` is the list captured at the Tab
@@ -1110,15 +1112,26 @@ export class LineEditor {
     this.render();
   }
 
-  /** The visible slice of the menu: selected row inverse, width-clamped. */
+  /**
+   * The visible slice of the menu: selected row inverse, width-clamped. When
+   * the list scrolls, a dimmed `selected/total` row marks the hidden rest.
+   */
   private renderMenuRows(menu: MenuState, cols: number): string[] {
     const filtered = this.menuCandidates(menu);
     const width = Math.min(Math.max(...filtered.map((candidate) => candidate.length), 1), cols - 1);
 
-    return filtered.slice(menu.scrollTop, menu.scrollTop + menuMaxVisible).map((candidate, index) => {
+    const rows = filtered.slice(menu.scrollTop, menu.scrollTop + menuMaxVisible).map((candidate, index) => {
       const text = candidate.slice(0, width).padEnd(width);
 
       return menu.scrollTop + index === menu.selected ? `${inverseOn}${text}${inverseOff}` : text;
     });
+
+    if (filtered.length > menuMaxVisible) {
+      const counter = `${menu.selected + 1}/${filtered.length}`.slice(0, cols - 1);
+
+      rows.push(`${dimOn}${counter}${dimOff}`);
+    }
+
+    return rows;
   }
 }
