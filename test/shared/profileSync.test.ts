@@ -238,6 +238,7 @@ describe('profile sync', () => {
       failed: [],
       dryRun: false,
       drifted: true,
+      excludedSections: [],
     });
   });
 
@@ -277,6 +278,7 @@ describe('profile sync', () => {
       failed: [],
       dryRun: false,
       drifted: true,
+      excludedSections: [],
     });
 
     for (const profile of result.synced) {
@@ -512,6 +514,7 @@ describe('profile sync', () => {
       failed: [],
       dryRun: true,
       drifted: true,
+      excludedSections: [],
     });
     assert.equal(readFileSync(profilePath, 'utf8'), staleProfileXml);
   });
@@ -578,6 +581,7 @@ describe('profile sync', () => {
       failed: [],
       dryRun: false,
       drifted: true,
+      excludedSections: [],
     });
 
     const expected = [
@@ -737,5 +741,82 @@ describe('profile sync', () => {
       message: 'Profile "Untracked" is not tracked in local source.',
     });
     assert.equal(readerCalled, false);
+  });
+
+  it('strips excluded top-level sections from the synced profile, matching only top-level tags', async () => {
+    const projectRoot = trackProject(createProject());
+    const orgProfile: ProfileMetadata = {
+      fullName: 'Admin',
+      classAccesses: [{ apexClass: 'TrackedClass', enabled: 'true' }],
+      flowAccesses: [{ enabled: 'true', flow: 'MyFlow' }],
+      custom: 'false',
+    };
+
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin'],
+      readProfiles: readerFor([orgProfile]),
+      // "enabled" and "flow" only exist as nested tags, so they must not strip anything.
+      excludedSections: ['flowAccesses', 'enabled', 'flow'],
+    });
+
+    assert.deepEqual(result.excludedSections, ['enabled', 'flow', 'flowAccesses']);
+    const written = readFileSync(
+      join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+      'utf8'
+    );
+    assert.equal(written.includes('<flowAccesses>'), false);
+    assert.equal(written.includes('<apexClass>TrackedClass</apexClass>'), true);
+    assert.equal(written.includes('<enabled>true</enabled>'), true);
+    assert.equal(written.includes('<custom>false</custom>'), true);
+  });
+
+  it('removes an already-written section when it becomes excluded, reporting the removal', async () => {
+    const projectRoot = trackProject(createProject());
+    const orgProfile: ProfileMetadata = {
+      fullName: 'Admin',
+      custom: 'true',
+      userPermissions: [
+        { name: 'ApiEnabled', enabled: 'true' },
+        { name: 'ViewSetup', enabled: 'true' },
+      ],
+    };
+    await syncProfiles({ projectRoot, profileNames: ['Admin'], readProfiles: readerFor([orgProfile]) });
+
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin'],
+      readProfiles: readerFor([orgProfile]),
+      excludedSections: ['userPermissions'],
+    });
+
+    assert.equal(result.drifted, true);
+    assert.deepEqual(result.synced[0].changes, [{ section: 'userPermissions', added: 0, removed: 2, modified: 0 }]);
+    const written = readFileSync(
+      join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+      'utf8'
+    );
+    assert.equal(written.includes('<userPermissions>'), false);
+    assert.equal(written.includes('<custom>true</custom>'), true);
+  });
+
+  it('excludes scalar sections and normalizes exclusion values', async () => {
+    const projectRoot = trackProject(createProject());
+    const orgProfile: ProfileMetadata = { fullName: 'Admin', custom: 'false', userLicense: 'Salesforce' };
+
+    const result = await syncProfiles({
+      projectRoot,
+      profileNames: ['Admin'],
+      readProfiles: readerFor([orgProfile]),
+      excludedSections: [' userLicense ', '', 'userLicense'],
+    });
+
+    assert.deepEqual(result.excludedSections, ['userLicense']);
+    const written = readFileSync(
+      join(projectRoot, 'force-app', 'main', 'default', 'profiles', 'Admin.profile-meta.xml'),
+      'utf8'
+    );
+    assert.equal(written.includes('<userLicense>'), false);
+    assert.equal(written.includes('<custom>false</custom>'), true);
   });
 });

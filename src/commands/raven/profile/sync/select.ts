@@ -2,7 +2,7 @@ import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import { syncProfiles, type ProfileSyncResult } from '../../../../shared/profileSync.js';
 import { getComponentInventory, selectItems, type PullListComponent } from '../../../../shared/pull.js';
-import { createProfileReader, displaySyncResult, getSourceApiVersion } from '../sync.js';
+import { createProfileReader, displaySyncResult, getSourceApiVersion, resolveExcludedSections } from '../sync.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.profile.sync.select');
@@ -20,6 +20,11 @@ export default class RavenProfileSyncSelect extends SfCommand<RavenProfileSyncSe
       char: 'o',
       required: true,
     }),
+    exclude: Flags.string({
+      summary: messages.getMessage('flags.exclude.summary'),
+      multiple: true,
+      delimiter: ',',
+    }),
   };
 
   public async run(): Promise<RavenProfileSyncSelectResult> {
@@ -27,7 +32,21 @@ export default class RavenProfileSyncSelect extends SfCommand<RavenProfileSyncSe
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() });
     const projectRoot = process.cwd();
     const targetOrg = flags['target-org'];
-    const emptyResult: ProfileSyncResult = { synced: [], skipped: [], failed: [], dryRun: false, drifted: false };
+    const excludedSections = await resolveExcludedSections(projectRoot, flags.exclude, () => {
+      throw messages.createError('error.noExcludeValues');
+    });
+    const emptyResult: ProfileSyncResult = {
+      synced: [],
+      skipped: [],
+      failed: [],
+      dryRun: false,
+      drifted: false,
+      excludedSections,
+    };
+
+    if (excludedSections.length > 0) {
+      ux.log(messages.getMessage('info.excludingSections', [excludedSections.join(', ')]));
+    }
 
     this.spinner.start(messages.getMessage('info.listing'));
 
@@ -60,6 +79,7 @@ export default class RavenProfileSyncSelect extends SfCommand<RavenProfileSyncSe
         profileNames,
         readProfiles: createProfileReader(connection),
         adoptUntracked: true,
+        excludedSections,
       });
       this.spinner.stop();
 

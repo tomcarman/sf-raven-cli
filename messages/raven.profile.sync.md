@@ -8,6 +8,8 @@ Reads the complete content of each Profile directly from the org via the CRUD Me
 
 Each synced profile is reported with a per-section summary of entries added, removed, and modified. With --dry-run, no files are written: the command prints the changes a sync would make and exits non-zero if any profile differs from the org (or could not be read from it), so CI can detect profiles changed directly in the org.
 
+Top-level profile sections (e.g. flowAccesses) can be excluded from syncing entirely - persisted per project with "sf raven profile sync exclusion add", or per run with --exclude. Excluded sections are stripped before profiles are written.
+
 # examples
 
 Sync every locally tracked profile from the default org:
@@ -26,6 +28,10 @@ Check for drift without writing any files (for CI):
 
 <%= config.bin %> <%= command.id %> --dry-run
 
+Exclude top-level profile sections for this run, in addition to any configured with "<%= config.bin %> raven profile sync exclusion add":
+
+<%= config.bin %> <%= command.id %> --exclude flowAccesses,layoutAssignments
+
 # flags.target-org.summary
 
 Username or alias of the target org.
@@ -37,6 +43,14 @@ Comma-separated names of the profiles to sync. Defaults to every profile tracked
 # flags.dry-run.summary
 
 Report what a sync would change without writing any files, and exit non-zero if any profile differs from the org or could not be checked.
+
+# flags.exclude.summary
+
+Comma-separated top-level profile section tags (e.g. flowAccesses) to exclude for this run, in addition to the project's configured exclusions. Excluded sections are never written, so a section already present in a local profile file is removed on the next sync.
+
+# info.excludingSections
+
+Excluding sections: %s
 
 # info.syncing
 
@@ -117,3 +131,7 @@ No locally tracked profiles found to sync.
 # error.noProfileNames
 
 The --profile flag was provided without any profile names.
+
+# error.noExcludeValues
+
+The --exclude flag was provided without any section names.

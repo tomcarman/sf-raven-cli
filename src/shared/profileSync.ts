@@ -15,6 +15,7 @@ export type ProfileSyncOptions = {
   readProfiles: ProfileReader;
   dryRun?: boolean;
   adoptUntracked?: boolean;
+  excludedSections?: string[];
 };
 
 export type SectionChanges = {
@@ -47,6 +48,7 @@ export type ProfileSyncResult = {
   failed: FailedProfile[];
   dryRun: boolean;
   drifted: boolean;
+  excludedSections: string[];
 };
 
 type ProfileEntry = Record<string, unknown>;
@@ -93,8 +95,10 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
 
   const inventory = buildComponentInventory(localComponents);
   const dryRun = options.dryRun ?? false;
+  const excludedSections = normalizeSectionNames(options.excludedSections ?? []);
+  const excludedSectionSet = new Set(excludedSections);
   const { orgProfiles, failures } = await readProfilesInBatches(profileNames, options.readProfiles);
-  const result: ProfileSyncResult = { synced: [], skipped: [], failed: [], dryRun, drifted: false };
+  const result: ProfileSyncResult = { synced: [], skipped: [], failed: [], dryRun, drifted: false, excludedSections };
 
   for (const { profileName, profilePath, adopted } of profileTargets) {
     const failure = failures.get(profileName);
@@ -111,7 +115,7 @@ export const syncProfiles = async (options: ProfileSyncOptions): Promise<Profile
       continue;
     }
 
-    const filteredProfile = filterProfile(orgProfile, inventory);
+    const filteredProfile = filterProfile(orgProfile, inventory, excludedSectionSet);
     const newContent = serializeProfile(filteredProfile);
     const oldContent = adopted ? undefined : readFileSync(profilePath, 'utf8');
     const changed = newContent !== oldContent;
@@ -262,11 +266,20 @@ const sectionRules: Record<string, SectionRule> = {
   userPermissions: { sortKeys: ['name'] },
 };
 
-const filterProfile = (profile: ProfileMetadata, inventory: ComponentInventory): ProfileMetadata => {
+export const normalizeSectionNames = (sectionNames: string[]): string[] =>
+  Array.from(
+    new Set(sectionNames.map((sectionName) => sectionName.trim()).filter((sectionName) => sectionName.length > 0))
+  ).sort(compareAscii);
+
+const filterProfile = (
+  profile: ProfileMetadata,
+  inventory: ComponentInventory,
+  excludedSectionSet: Set<string>
+): ProfileMetadata => {
   const filtered: ProfileMetadata = {};
 
   for (const [sectionName, value] of Object.entries(profile)) {
-    if (sectionName === 'fullName') {
+    if (sectionName === 'fullName' || excludedSectionSet.has(sectionName)) {
       continue;
     }
 

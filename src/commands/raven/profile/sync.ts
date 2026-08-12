@@ -2,6 +2,7 @@ import { Messages, SfProject, type Connection } from '@salesforce/core';
 import { ensureArray } from '@salesforce/kit';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import {
+  normalizeSectionNames,
   syncProfiles,
   type ProfileMetadata,
   type ProfileReader,
@@ -9,6 +10,7 @@ import {
   type SectionChanges,
   type SyncedProfile,
 } from '../../../shared/profileSync.js';
+import { getConfiguredExcludedSections } from '../../../shared/profileSyncConfig.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.profile.sync');
@@ -36,6 +38,11 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
       summary: messages.getMessage('flags.dry-run.summary'),
       default: false,
     }),
+    exclude: Flags.string({
+      summary: messages.getMessage('flags.exclude.summary'),
+      multiple: true,
+      delimiter: ',',
+    }),
   };
 
   public async run(): Promise<RavenProfileSyncResult> {
@@ -51,6 +58,14 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
       throw messages.createError('error.noProfileNames');
     }
 
+    const excludedSections = await resolveExcludedSections(projectRoot, flags.exclude, () => {
+      throw messages.createError('error.noExcludeValues');
+    });
+
+    if (excludedSections.length > 0) {
+      ux.log(messages.getMessage('info.excludingSections', [excludedSections.join(', ')]));
+    }
+
     const readProfiles = createProfileReader(connection);
     const dryRun = flags['dry-run'];
     const spinnerMessages = dryRun
@@ -63,7 +78,7 @@ export default class RavenProfileSync extends SfCommand<RavenProfileSyncResult> 
     );
 
     try {
-      const result = await syncProfiles({ projectRoot, profileNames, readProfiles, dryRun });
+      const result = await syncProfiles({ projectRoot, profileNames, readProfiles, dryRun, excludedSections });
       this.spinner.stop();
 
       displaySyncResult(ux, (message) => this.warn(message), result, dryRun);
@@ -153,6 +168,21 @@ const formatChangeCounts = (section: SectionChanges): string =>
   ]
     .filter((part): part is string => part != null)
     .join(', ');
+
+// Unions runtime --exclude values with the project's persisted exclusions.
+export const resolveExcludedSections = async (
+  projectRoot: string,
+  excludeFlagValues: string[] | undefined,
+  onEmptyFlag: () => never
+): Promise<string[]> => {
+  const flagSections = excludeFlagValues == null ? undefined : normalizeSectionNames(excludeFlagValues);
+
+  if (flagSections != null && flagSections.length === 0) {
+    onEmptyFlag();
+  }
+
+  return normalizeSectionNames([...(await getConfiguredExcludedSections(projectRoot)), ...(flagSections ?? [])]);
+};
 
 export const getSourceApiVersion = async (projectRoot: string): Promise<string | undefined> => {
   const project = await SfProject.resolve(projectRoot);

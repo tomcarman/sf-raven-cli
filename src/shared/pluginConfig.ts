@@ -11,6 +11,9 @@ export type RavenPluginConfig = {
   open?: {
     aliases?: Record<string, string>;
   };
+  profileSync?: {
+    excludedSections?: string[];
+  };
 };
 
 export const pluginName = 'sf-raven';

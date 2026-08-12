@@ -20,6 +20,18 @@ Pick profiles from a specific org:
 
 Username or alias of the target org.
 
+# flags.exclude.summary
+
+Comma-separated top-level profile section tags (e.g. flowAccesses) to exclude for this run, in addition to the project's configured exclusions. Excluded sections are never written, so a section already present in a local profile file is removed on the next sync.
+
+# info.excludingSections
+
+Excluding sections: %s
+
+# error.noExcludeValues
+
+The --exclude flag was provided without any section names.
+
 # info.listing
 
 Listing profiles from the org and local source

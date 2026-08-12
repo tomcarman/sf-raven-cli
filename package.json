@@ -162,7 +162,12 @@
             "description": "Commands relating to Profiles.",
             "subtopics": {
               "sync": {
-                "description": "Sync full Profile metadata from an org into local source."
+                "description": "Sync full Profile metadata from an org into local source.",
+                "subtopics": {
+                  "exclusion": {
+                    "description": "Manage the profile sections excluded from profile sync."
+                  }
+                }
               }
             }
           },
