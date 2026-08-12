@@ -4,7 +4,7 @@
   "version": "1.12.0",
   "dependencies": {
     "@inquirer/select": "2.5.0",
-    "@oclif/core": "^4.11.4",
+    "@oclif/core": "^4.13.3",
     "@salesforce/apex-node": "^8.4.39",
     "@salesforce/core": "^8.2.3",
     "@salesforce/kit": "^3.1.6",
