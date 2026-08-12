@@ -49,6 +49,9 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 - **[sf raven pull remote type remove](#sf-raven-pull-remote-type-remove)** - _Remove metadata types from the remote pull configuration._
 - **[sf raven profile sync](#sf-raven-profile-sync)** - _Sync full Profile metadata from an org into local source files - byte-identical to a full-project retrieve, in a fraction of the time._
 - **[sf raven profile sync select](#sf-raven-profile-sync-select)** - _Interactively pick org profiles to sync into local source via a fuzzy finder, including adopting profiles not yet tracked._
+- **[sf raven profile sync exclusion add](#sf-raven-profile-sync-exclusion-add)** - _Add top-level profile sections (e.g. flowAccesses) to the project's sync exclusions, persisted in sfdx-project.json._
+- **[sf raven profile sync exclusion list](#sf-raven-profile-sync-exclusion-list)** - _List the profile sections excluded from profile sync._
+- **[sf raven profile sync exclusion remove](#sf-raven-profile-sync-exclusion-remove)** - _Remove profile sections from the project's sync exclusions._
 
   
 ## Install
@@ -697,14 +700,17 @@ Reads the complete content of each Profile directly from the org via the CRUD Me
 
 Each synced profile is reported with a per-section summary of entries added, removed, and modified. With `--dry-run`, no files are written: the command prints the changes a sync would make and exits non-zero if any profile differs from the org (or could not be read from it), so CI can detect profiles changed directly in the org.
 
+Top-level profile sections (e.g. flowAccesses) can be excluded from syncing entirely - persisted per project with [sf raven profile sync exclusion add](#sf-raven-profile-sync-exclusion-add), or per run with `--exclude`. Excluded sections are stripped before profiles are written.
+
 ```
 USAGE
-  $ sf raven profile sync -o <value> [--json] [-p <value>...] [--dry-run]
+  $ sf raven profile sync -o <value> [--json] [-p <value>...] [--dry-run] [--exclude <value>...]
 
 FLAGS
   -o, --target-org=<value>  (required) Username or alias of the target org.
   -p, --profile=<value>...  Comma-separated names of the profiles to sync. Defaults to every profile tracked in local source.
       --dry-run             Report what a sync would change without writing any files, and exit non-zero if any profile differs from the org or could not be checked.
+      --exclude=<value>...  Comma-separated top-level profile section tags (e.g. flowAccesses) to exclude for this run, in addition to the project's configured exclusions. Excluded sections are never written, so a section already present in a local profile file is removed on the next sync.
 
 GLOBAL FLAGS
   --json  Format output as json.
@@ -714,6 +720,8 @@ DESCRIPTION
 
   Each synced profile is reported with a per-section summary of entries added, removed, and modified. With --dry-run, no files are written: the command prints the changes a sync would make and exits non-zero if any profile differs from the org (or could not be read from it), so CI can detect profiles changed directly in the org.
 
+  Top-level profile sections (e.g. flowAccesses) can be excluded from syncing entirely - persisted per project with "sf raven profile sync exclusion add", or per run with --exclude. Excluded sections are stripped before profiles are written.
+
 EXAMPLES
   $ sf raven profile sync
 
@@ -722,6 +730,8 @@ EXAMPLES
   $ sf raven profile sync --profile Admin --target-org my-org
 
   $ sf raven profile sync --dry-run
+
+  $ sf raven profile sync --exclude flowAccesses,layoutAssignments
 
 
 OUTPUT
@@ -740,10 +750,11 @@ Lists every profile in the target org, alongside every profile tracked in local 
 
 ```
 USAGE
-  $ sf raven profile sync select -o <value> [--json]
+  $ sf raven profile sync select -o <value> [--json] [--exclude <value>...]
 
 FLAGS
   -o, --target-org=<value>  (required) Username or alias of the target org.
+      --exclude=<value>...  Comma-separated top-level profile section tags (e.g. flowAccesses) to exclude for this run, in addition to the project's configured exclusions. Excluded sections are never written, so a section already present in a local profile file is removed on the next sync.
 
 GLOBAL FLAGS
   --json  Format output as json.
@@ -764,6 +775,90 @@ Synced Admin -> force-app/main/default/profiles/Admin.profile-meta.xml
 Created Read Only -> force-app/main/default/profiles/Read Only.profile-meta.xml
     fieldPermissions: 42 added
     userPermissions: 18 added
+```
+
+### sf raven profile sync exclusion add
+
+<details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-profile-sync-exclusion.gif" alt="sf raven profile sync exclusion demo"/></details>
+
+Adds one or more top-level profile section tags (e.g. flowAccesses) to the project's persisted exclusion list, stored in sfdx-project.json and shared with the team via source control. Excluded sections are stripped from every profile written by [sf raven profile sync](#sf-raven-profile-sync) and [sf raven profile sync select](#sf-raven-profile-sync-select), so a section already present in a local profile file is removed on the next sync.
+
+Section names are accepted as-is - they are matched exactly (case-sensitive) against top-level tags in the Profile XML and are not validated against known metadata, so new Salesforce section types work without a plugin update. Nested tags (e.g. the flow or enabled tags inside flowAccesses) never match.
+
+```
+USAGE
+  $ sf raven profile sync exclusion add SECTIONS... [--json]
+
+ARGUMENTS
+  SECTIONS...  Top-level profile section tags to exclude. Separate multiple values with spaces or commas.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Adds one or more top-level profile section tags (e.g. flowAccesses) to the project's persisted exclusion list, stored in sfdx-project.json and shared with the team via source control. Excluded sections are stripped from every profile written by "sf raven profile sync" and "sf raven profile sync select", so a section already present in a local profile file is removed on the next sync. Section names are accepted as-is - they are matched exactly (case-sensitive) against top-level tags in the Profile XML and are not validated against known metadata, so new Salesforce section types work without a plugin update. Nested tags (e.g. the flow or enabled tags inside flowAccesses) never match.
+
+EXAMPLES
+  $ sf raven profile sync exclusion add flowAccesses
+
+  $ sf raven profile sync exclusion add flowAccesses layoutAssignments
+
+
+OUTPUT
+
+Added sections: flowAccesses, layoutAssignments
+Excluded sections are now: flowAccesses, layoutAssignments
+```
+
+### sf raven profile sync exclusion list
+
+Prints the top-level profile section tags persisted in sfdx-project.json that [sf raven profile sync](#sf-raven-profile-sync) and [sf raven profile sync select](#sf-raven-profile-sync-select) strip from every synced profile. Runtime-only exclusions passed via `--exclude` are not part of the persisted list.
+
+```
+USAGE
+  $ sf raven profile sync exclusion list [--json]
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Prints the top-level profile section tags persisted in sfdx-project.json that "sf raven profile sync" and "sf raven profile sync select" strip from every synced profile. Runtime-only exclusions passed via --exclude are not part of the persisted list.
+
+EXAMPLES
+  $ sf raven profile sync exclusion list
+
+
+OUTPUT
+
+flowAccesses
+layoutAssignments
+```
+
+### sf raven profile sync exclusion remove
+
+Removes one or more section tags from the project's persisted exclusion list in sfdx-project.json. Removed sections are synced again from the next [sf raven profile sync](#sf-raven-profile-sync) run onwards. Values that are not currently excluded produce a warning and are otherwise ignored.
+
+```
+USAGE
+  $ sf raven profile sync exclusion remove SECTIONS... [--json]
+
+ARGUMENTS
+  SECTIONS...  Section tags to stop excluding. Separate multiple values with spaces or commas.
+
+GLOBAL FLAGS
+  --json  Format output as json.
+
+DESCRIPTION
+  Removes one or more section tags from the project's persisted exclusion list in sfdx-project.json. Removed sections are synced again from the next "sf raven profile sync" run onwards. Values that are not currently excluded produce a warning and are otherwise ignored.
+
+EXAMPLES
+  $ sf raven profile sync exclusion remove flowAccesses
+
+
+OUTPUT
+
+Removed sections: flowAccesses
+Excluded sections are now: layoutAssignments
 ```
 
 ### sf raven deploy cancel
