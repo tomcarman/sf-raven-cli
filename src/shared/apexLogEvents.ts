@@ -1,3 +1,5 @@
+import { parseLogEntries, type LogEntry } from './apexLogRender.js';
+
 export type ApexLogRecordFields = {
   Operation: string;
   DurationMilliseconds: number;
@@ -13,6 +15,8 @@ export type LogEvent = {
   durationMs: number;
   status: string;
   body: string;
+  /** Structured debug and exception entries parsed from body, unfiltered. */
+  entries: LogEntry[];
 };
 
 export type StatusEventName = 'connected' | 'traceActive' | 'traceCreated' | 'timeout';
@@ -43,6 +47,7 @@ export const buildLogEvent = (
   durationMs: record?.DurationMilliseconds ?? 0,
   status: record?.Status ?? 'Unknown',
   body,
+  entries: parseLogEntries(body),
 });
 
 export const buildStatusEvent = (event: StatusEventName, traceExpiry?: string): StatusEvent =>

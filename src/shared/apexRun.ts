@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import type { ApexDiagnostic, ExecuteAnonymousResponse } from '@salesforce/apex-node';
-import { formatLogHeader, parseLogLines } from './apexLogRender.js';
+import { formatLogHeader, parseLogEntries, parseLogLines, type LogEntry } from './apexLogRender.js';
 import { stripAnsi } from './table.js';
 
 export const DEFAULT_APEX_FILE = 'scripts/apex/scratch.apex';
@@ -12,7 +12,12 @@ export type ApexRunResult = {
   compileProblem?: string;
   exceptionMessage?: string;
   exceptionStackTrace?: string;
+  /** Plain-text debug lines after --filter. Kept for backward compatibility; prefer entries. */
   logLines: string[];
+  /** The full, unfiltered debug log body. */
+  log: string;
+  /** Structured debug and exception entries parsed from the log, unfiltered. */
+  entries: LogEntry[];
   duration: number;
 };
 
@@ -40,12 +45,15 @@ export const buildApexRunResult = (
   filter?: string
 ): ApexRunResult => {
   const diagnostic = firstDiagnostic(response);
-  const logLines = parseLogLines(response.logs ?? '', filter).map(stripAnsi);
+  const log = response.logs ?? '';
+  const logLines = parseLogLines(log, filter).map(stripAnsi);
 
   const result: ApexRunResult = {
     success: response.success,
     compiled: response.compiled,
     logLines,
+    log,
+    entries: parseLogEntries(log),
     duration,
   };
 

@@ -1,11 +1,75 @@
 import assert from 'node:assert/strict';
 import chalk from 'chalk';
-import { formatLevel, formatLogHeader, parseLogLines } from '../../src/shared/apexLogRender.js';
+import { formatLevel, formatLogHeader, parseLogEntries, parseLogLines } from '../../src/shared/apexLogRender.js';
 
 const stripAnsi = (value: string): string => value.replace(/\[[0-9;]*m/g, '');
 
 describe('apex log renderers', () => {
+  describe('parseLogEntries', () => {
+    it('reads a USER_DEBUG line into a debug entry with line number, level and message', () => {
+      const entries = parseLogEntries('10:15:30.1 (1234)|USER_DEBUG|[12]|DEBUG|hello world');
+
+      assert.deepEqual(entries, [{ kind: 'debug', line: 12, level: 'DEBUG', message: 'hello world' }]);
+    });
+
+    it('keeps pipes that appear inside the debug message', () => {
+      const [entry] = parseLogEntries('x|USER_DEBUG|[1]|WARN|a|b|c');
+
+      assert.deepEqual(entry, { kind: 'debug', line: 1, level: 'WARN', message: 'a|b|c' });
+    });
+
+    it('ignores other events and malformed USER_DEBUG lines', () => {
+      const body = [
+        '45.0 APEX_CODE,DEBUG',
+        'x|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous',
+        'x|USER_DEBUG|[1]',
+        'x|USER_DEBUG|[2]|DEBUG|kept',
+        '',
+      ].join('\n');
+
+      assert.deepEqual(parseLogEntries(body), [{ kind: 'debug', line: 2, level: 'DEBUG', message: 'kept' }]);
+    });
+
+    it('reads EXCEPTION_THROWN and FATAL_ERROR lines into exception entries, in log order', () => {
+      const body = [
+        'x|USER_DEBUG|[4]|DEBUG|before',
+        'x|EXCEPTION_THROWN|[5]|System.NullPointerException: boom',
+        'x|FATAL_ERROR|System.LimitException: too many SOQL',
+      ].join('\n');
+
+      assert.deepEqual(parseLogEntries(body), [
+        { kind: 'debug', line: 4, level: 'DEBUG', message: 'before' },
+        { kind: 'exception', message: '[5]|System.NullPointerException: boom' },
+        { kind: 'exception', message: 'System.LimitException: too many SOQL' },
+      ]);
+    });
+  });
+
   describe('parseLogLines', () => {
+    it('renders the exact coloured terminal output for debug and exception lines', () => {
+      const previousLevel = chalk.level;
+      chalk.level = 1;
+
+      try {
+        const body = [
+          'h|USER_DEBUG|[12]|ERROR|a|b',
+          'h|USER_DEBUG|[3]|INFO|x',
+          'h|EXCEPTION_THROWN|[5]|boom',
+          'h|FATAL_ERROR|dead',
+        ].join('\n');
+
+        // Captured from the renderer before it was split into parseLogEntries + formatter.
+        assert.deepEqual(parseLogLines(body), [
+          '  \u001b[2m[12] \u001b[22m \u001b[31m\u001b[1mERROR  \u001b[22m\u001b[39m  a|b',
+          '  \u001b[2m[3]  \u001b[22m \u001b[36mINFO   \u001b[39m  x',
+          '\u001b[31m  ⚠  [5]|boom\u001b[39m',
+          '\u001b[31m  ⚠  dead\u001b[39m',
+        ]);
+      } finally {
+        chalk.level = previousLevel;
+      }
+    });
+
     it('renders a USER_DEBUG line with line number, level, and message', () => {
       const body = '10:15:30.1 (1234)|USER_DEBUG|[12]|DEBUG|hello world';
 
