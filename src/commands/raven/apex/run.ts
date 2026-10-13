@@ -1,6 +1,7 @@
 import { watch } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
+import { createInterface } from 'node:readline';
 import { ExecuteService } from '@salesforce/apex-node';
 import { Messages, type Connection } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
@@ -17,6 +18,7 @@ import {
   type ApexRunResult,
   type ApexRunStreamEvent,
 } from '../../../shared/apexRun.js';
+import { apexRunFlagError, serveApexStdin, type ApexStdinEvent } from '../../../shared/apexRunStdin.js';
 import { createRunScheduler } from '../../../shared/runScheduler.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -58,18 +60,27 @@ export default class RavenApexRun extends SfCommand<RavenApexRunResult> {
       summary: messages.getMessage('flags.ndjson.summary'),
       default: false,
     }),
+    stdin: Flags.boolean({
+      summary: messages.getMessage('flags.stdin.summary'),
+      default: false,
+    }),
   };
 
   public async run(): Promise<RavenApexRunResult> {
     const { flags, metadata } = await this.parse(RavenApexRun);
     const ndjson = flags.ndjson;
+    const usingDefaultFile = metadata.flags['file']?.setFromDefault === true;
 
-    if (flags.watch && this.jsonEnabled()) {
-      throw messages.createError('error.watchWithJson');
-    }
+    const flagError = apexRunFlagError({
+      watch: flags.watch,
+      ndjson,
+      stdin: flags.stdin,
+      json: this.jsonEnabled(),
+      fileSet: !usingDefaultFile,
+    });
 
-    if (ndjson && !flags.watch) {
-      throw messages.createError('error.ndjsonRequiresWatch');
+    if (flagError) {
+      throw messages.createError(flagError);
     }
 
     const ux = new Ux({ jsonEnabled: this.jsonEnabled() || ndjson });
@@ -80,8 +91,11 @@ export default class RavenApexRun extends SfCommand<RavenApexRunResult> {
       throw messages.createError('error.noTargetOrg');
     }
 
+    if (flags.stdin) {
+      return serveStdin(org.getConnection(), flags.filter);
+    }
+
     const filePath = resolve(flags.file);
-    const usingDefaultFile = metadata.flags['file']?.setFromDefault === true;
 
     // Reading up front both scaffolds the default file and fails fast on a bad
     // path, before watch mode commits to a long-running loop.
@@ -193,6 +207,28 @@ const runOnce = async (
   }
 
   return execution;
+};
+
+const writeStdinEvent = (event: ApexStdinEvent): void => {
+  process.stdout.write(`${JSON.stringify(event)}\n`);
+};
+
+/**
+ * Serves runs from stdin until it closes, then exits 0 once the output is flushed. The process
+ * stays up between runs, so callers skip the CLI's startup cost on every run after the first.
+ */
+const serveStdin = async (connection: Connection, filter: string | undefined): Promise<never> => {
+  const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
+
+  await serveApexStdin({
+    lines,
+    execute: async (code) => (await executeApex(connection, code, filter)).result,
+    write: writeStdinEvent,
+  });
+
+  // Open HTTP sockets to the org would otherwise keep the process alive.
+  await new Promise<void>((resolveWrite) => process.stdout.write('', () => resolveWrite()));
+  process.exit(0);
 };
 
 /**
