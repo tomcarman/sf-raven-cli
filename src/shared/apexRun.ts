@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import type { ApexDiagnostic, ExecuteAnonymousResponse } from '@salesforce/apex-node';
 import { formatLogHeader, parseLogEntries, parseLogLines, type LogEntry } from './apexLogRender.js';
+import type { ApexStdinEvent } from './apexRunStdin.js';
 import { stripAnsi } from './table.js';
 
 export const DEFAULT_APEX_FILE = 'scripts/apex/scratch.apex';
@@ -74,6 +75,34 @@ export const buildApexRunResult = (
   return result;
 };
 
+export type ApexRunModeFlags = {
+  watch: boolean;
+  ndjson: boolean;
+  stdin: boolean;
+  json: boolean;
+  /** --file was given, not left at its default. */
+  fileSet: boolean;
+};
+
+export type ApexRunFlagError =
+  | 'error.watchWithJson'
+  | 'error.ndjsonRequiresWatch'
+  | 'error.stdinRequiresNdjson'
+  | 'error.stdinExclusive';
+
+/** The message key for a flag combination `apex run` refuses, or undefined when it is fine. */
+export const apexRunFlagError = (flags: ApexRunModeFlags): ApexRunFlagError | undefined => {
+  if (flags.stdin) {
+    if (flags.fileSet || flags.watch || flags.json) return 'error.stdinExclusive';
+    if (!flags.ndjson) return 'error.stdinRequiresNdjson';
+    return undefined;
+  }
+
+  if (flags.watch && flags.json) return 'error.watchWithJson';
+  if (flags.ndjson && !flags.watch) return 'error.ndjsonRequiresWatch';
+  return undefined;
+};
+
 export type ApexRunStatusName = 'watching' | 'run-start';
 
 export type ApexRunStatusEvent = {
@@ -101,7 +130,8 @@ export const buildApexRunEvent = (result: ApexRunResult): ApexRunRunEvent => ({ 
 
 export const buildApexRunErrorEvent = (message: string): ApexRunErrorEvent => ({ type: 'error', message });
 
-export const serializeApexRunEvent = (event: ApexRunStreamEvent): string => JSON.stringify(event);
+/** One NDJSON line for watch mode or --stdin mode. */
+export const serializeApexRunEvent = (event: ApexRunStreamEvent | ApexStdinEvent): string => JSON.stringify(event);
 
 export type RenderApexRunOptions = {
   raw?: boolean;

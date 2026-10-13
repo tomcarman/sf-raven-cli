@@ -1277,12 +1277,13 @@ Execution uses the SOAP debugging header, so each run's log comes back with the 
 
 * `--watch` re-runs the file every time you save it, so you can iterate in your editor and watch the output land in the terminal
 * `--ndjson` streams a watch loop as machine-readable events, one JSON object per line
+* `--stdin --ndjson` keeps one process running and takes runs on stdin, one `{"id", "code"}` JSON line each, so tools can skip the CLI startup on every run. It answers `ready` once, then `run-start` and `run` (or `error`) events carrying each request's id, runs one at a time in order, and exits when stdin closes
 * The command exits non-zero when the code fails to compile or throws at runtime, so it can be used in scripts
 
 ```
 USAGE
   $ sf raven apex run [--json] [-o <value>] [-f <value>] [--filter <value>] [--raw] [-w]
-    [--ndjson]
+    [--ndjson] [--stdin]
 
 FLAGS
   -f, --file=<value>        [default: scripts/apex/scratch.apex] Path to the anonymous Apex file to execute.
@@ -1291,8 +1292,11 @@ FLAGS
                             --json.
       --filter=<value>      Only show USER_DEBUG lines containing this string. Errors and exceptions are always shown.
       --ndjson              Stream machine-readable NDJSON events, one JSON object per line, instead of formatted
-                            output. Requires --watch.
+                            output. Requires --watch or --stdin.
       --raw                 Print the full log body instead of filtering to USER_DEBUG and exception lines.
+      --stdin               Read run requests from stdin, one JSON line each ({"id": "...", "code": "..."}), and run
+                            them one at a time until stdin closes. Nothing runs at startup. Requires --ndjson. Cannot
+                            be combined with --file, --watch or --json.
 
 GLOBAL FLAGS
   --json  Format output as json.
@@ -1326,6 +1330,9 @@ EXAMPLES
 
   Stream machine-readable results from a watch loop:
   $ sf raven apex run --watch --ndjson
+
+  Keep one process running and send it runs on stdin, one JSON line each:
+  $ echo '{"id": "1", "code": "System.debug(1);"}' | sf raven apex run --stdin --ndjson
 ```
 
 ### sf raven open

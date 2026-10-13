@@ -36,6 +36,10 @@ Stream machine-readable results from a watch loop:
 
 <%= config.bin %> <%= command.id %> --watch --ndjson
 
+Keep one process running and send it runs on stdin, one JSON line each:
+
+echo '{"id": "1", "code": "System.debug(1);"}' | <%= config.bin %> <%= command.id %> --stdin --ndjson
+
 # flags.target-org.summary
 
 Login username or alias for the target org. Uses the default org when omitted.
@@ -58,7 +62,11 @@ Re-run the file every time it changes on disk. Press Ctrl+C to stop. Cannot be c
 
 # flags.ndjson.summary
 
-Stream machine-readable NDJSON events, one JSON object per line, instead of formatted output. Requires --watch.
+Stream machine-readable NDJSON events, one JSON object per line, instead of formatted output. Requires --watch or --stdin.
+
+# flags.stdin.summary
+
+Read run requests from stdin, one JSON line each ({"id": "...", "code": "..."}), and run them one at a time until stdin closes. Nothing runs at startup. Requires --ndjson. Cannot be combined with --file, --watch or --json.
 
 # info.executing
 
@@ -94,4 +102,12 @@ Apex file not found: %s
 
 # error.ndjsonRequiresWatch
 
---ndjson requires --watch.
+--ndjson requires --watch or --stdin.
+
+# error.stdinRequiresNdjson
+
+--stdin requires --ndjson.
+
+# error.stdinExclusive
+
+--stdin cannot be combined with --file, --watch or --json.
