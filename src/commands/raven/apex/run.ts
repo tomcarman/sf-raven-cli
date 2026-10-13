@@ -7,6 +7,7 @@ import { Messages, type Connection } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
 import chalk from 'chalk';
 import {
+  apexRunFlagError,
   buildApexRunErrorEvent,
   buildApexRunEvent,
   buildApexRunResult,
@@ -18,7 +19,7 @@ import {
   type ApexRunResult,
   type ApexRunStreamEvent,
 } from '../../../shared/apexRun.js';
-import { apexRunFlagError, serveApexStdin, type ApexStdinEvent } from '../../../shared/apexRunStdin.js';
+import { serveApexStdin, type ApexStdinEvent } from '../../../shared/apexRunStdin.js';
 import { createRunScheduler } from '../../../shared/runScheduler.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -164,7 +165,7 @@ type ApexExecution = {
 const isMissingFileError = (error: unknown): boolean =>
   error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT';
 
-const writeEventLine = (event: ApexRunStreamEvent): void => {
+const writeEventLine = (event: ApexRunStreamEvent | ApexStdinEvent): void => {
   process.stdout.write(`${serializeApexRunEvent(event)}\n`);
 };
 
@@ -209,10 +210,6 @@ const runOnce = async (
   return execution;
 };
 
-const writeStdinEvent = (event: ApexStdinEvent): void => {
-  process.stdout.write(`${JSON.stringify(event)}\n`);
-};
-
 /**
  * Serves runs from stdin until it closes, then exits 0 once the output is flushed. The process
  * stays up between runs, so callers skip the CLI's startup cost on every run after the first.
@@ -223,7 +220,7 @@ const serveStdin = async (connection: Connection, filter: string | undefined): P
   await serveApexStdin({
     lines,
     execute: async (code) => (await executeApex(connection, code, filter)).result,
-    write: writeStdinEvent,
+    write: writeEventLine,
   });
 
   // Open HTTP sockets to the org would otherwise keep the process alive.

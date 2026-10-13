@@ -1,7 +1,7 @@
 import type { ApexRunResult } from './apexRun.js';
 
 /** One line of `apex run --stdin` input. */
-export type StdinRunRequest = {
+export type ApexStdinRunRequest = {
   id: string;
   code: string;
 };
@@ -17,37 +17,9 @@ export type ApexStdinErrorEvent = { type: 'error'; id?: string; message: string 
 
 export type ApexStdinEvent = ApexStdinReadyEvent | ApexStdinRunStartEvent | ApexStdinRunEvent | ApexStdinErrorEvent;
 
-export type ApexRunModeFlags = {
-  watch: boolean;
-  ndjson: boolean;
-  stdin: boolean;
-  json: boolean;
-  /** --file was given, not left at its default. */
-  fileSet: boolean;
-};
-
-export type ApexRunFlagError =
-  | 'error.watchWithJson'
-  | 'error.ndjsonRequiresWatch'
-  | 'error.stdinRequiresNdjson'
-  | 'error.stdinExclusive';
-
-/** The message key for a flag combination `apex run` refuses, or undefined when it is fine. */
-export const apexRunFlagError = (flags: ApexRunModeFlags): ApexRunFlagError | undefined => {
-  if (flags.stdin) {
-    if (flags.fileSet || flags.watch || flags.json) return 'error.stdinExclusive';
-    if (!flags.ndjson) return 'error.stdinRequiresNdjson';
-    return undefined;
-  }
-
-  if (flags.watch && flags.json) return 'error.watchWithJson';
-  if (flags.ndjson && !flags.watch) return 'error.ndjsonRequiresWatch';
-  return undefined;
-};
-
 const INVALID_LINE = 'Expected one JSON object per line: {"id": "<string>", "code": "<apex>"}';
 
-export const parseStdinRunRequest = (line: string): StdinRunRequest | { error: string } => {
+export const parseApexStdinRunRequest = (line: string): ApexStdinRunRequest | { error: string } => {
   let value: unknown;
 
   try {
@@ -85,11 +57,7 @@ export const serveApexStdin = async ({ lines, execute, write }: ServeApexStdinOp
   write({ type: 'ready' });
 
   for await (const line of lines) {
-    if (line.trim() === '') {
-      continue;
-    }
-
-    const request = parseStdinRunRequest(line);
+    const request = parseApexStdinRunRequest(line);
 
     if ('error' in request) {
       write({ type: 'error', message: request.error });

@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import type { ApexRunResult } from '../../src/shared/apexRun.js';
-import {
-  apexRunFlagError,
-  parseStdinRunRequest,
-  serveApexStdin,
-  type ApexStdinEvent,
-} from '../../src/shared/apexRunStdin.js';
+import { apexRunFlagError } from '../../src/shared/apexRun.js';
+import { parseApexStdinRunRequest, serveApexStdin, type ApexStdinEvent } from '../../src/shared/apexRunStdin.js';
 
 const resultFor = (code: string): ApexRunResult => ({
   success: true,
@@ -106,9 +102,9 @@ describe('apex run --stdin', () => {
     });
   });
 
-  describe('parseStdinRunRequest', () => {
+  describe('parseApexStdinRunRequest', () => {
     it('reads an id and code', () => {
-      assert.deepEqual(parseStdinRunRequest('{"id":"a1","code":"System.debug(1);"}'), {
+      assert.deepEqual(parseApexStdinRunRequest('{"id":"a1","code":"System.debug(1);"}'), {
         id: 'a1',
         code: 'System.debug(1);',
       });
@@ -116,7 +112,7 @@ describe('apex run --stdin', () => {
 
     it('rejects lines that are not a run request', () => {
       for (const line of ['not json', '[]', 'null', '{"code":"x"}', '{"id":"","code":"x"}', '{"id":"a","code":5}']) {
-        const parsed = parseStdinRunRequest(line);
+        const parsed = parseApexStdinRunRequest(line);
         assert.ok('error' in parsed, line);
       }
     });
@@ -234,18 +230,22 @@ describe('apex run --stdin', () => {
       assert.deepEqual(events[3], { type: 'run', id: 'r2', ...resultFor('two') });
     });
 
-    it('ignores blank lines', async () => {
+    it('answers a blank line like any other bad line', async () => {
       const input = createInput();
       const executor = createExecutor();
       const events: ApexStdinEvent[] = [];
       const served = serveApexStdin({ lines: input.lines, execute: executor.execute, write: (e) => events.push(e) });
 
       input.push('');
-      input.push('   ');
       input.close();
       await served;
 
-      assert.deepEqual(events, [{ type: 'ready' }]);
+      assert.deepEqual(
+        events.map((e) => e.type),
+        ['ready', 'error']
+      );
+      assert.equal('id' in events[1], false);
+      assert.deepEqual(executor.started, []);
     });
 
     it('finishes once stdin closes, after the run in progress', async () => {
