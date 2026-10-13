@@ -46,10 +46,22 @@ describe('apex run result', () => {
       assert.equal(result.logLines[0].endsWith('goodbye'), true);
     });
 
+    it('carries the raw log and its structured entries, unaffected by the filter', () => {
+      const result = buildApexRunResult({ compiled: true, success: true, logs: debugLog }, 1, 'good');
+
+      assert.equal(result.log, debugLog);
+      assert.deepEqual(result.entries, [
+        { kind: 'debug', line: 3, level: 'DEBUG', message: 'hello' },
+        { kind: 'debug', line: 4, level: 'DEBUG', message: 'goodbye' },
+      ]);
+    });
+
     it('tolerates a response with no log body', () => {
       const result = buildApexRunResult({ compiled: true, success: true }, 1);
 
       assert.deepEqual(result.logLines, []);
+      assert.equal(result.log, '');
+      assert.deepEqual(result.entries, []);
     });
 
     it('reports a compile problem with its line and column', () => {

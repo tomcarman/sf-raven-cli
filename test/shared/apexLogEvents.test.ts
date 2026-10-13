@@ -24,7 +24,20 @@ describe('apex log NDJSON events', () => {
         durationMs: 123,
         status: 'Success',
         body: 'line one\nline two',
+        entries: [],
       });
+    });
+
+    it('carries structured entries parsed from the body alongside it', () => {
+      const body = ['x|USER_DEBUG|[7]|INFO|a|b', 'x|FATAL_ERROR|System.LimitException: too many SOQL'].join('\n');
+
+      const event = buildLogEvent('id', 'date', undefined, body);
+
+      assert.equal(event.body, body);
+      assert.deepEqual(event.entries, [
+        { kind: 'debug', line: 7, level: 'INFO', message: 'a|b' },
+        { kind: 'exception', message: 'System.LimitException: too many SOQL' },
+      ]);
     });
 
     it('falls back to placeholder metadata when the log record is missing', () => {

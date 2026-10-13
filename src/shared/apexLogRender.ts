@@ -1,30 +1,56 @@
 import chalk from 'chalk';
 import dayjs from 'dayjs';
 
-export const parseLogLines = (body: string, filter?: string): string[] => {
-  const result: string[] = [];
+export type DebugLogEntry = {
+  kind: 'debug';
+  line: number;
+  level: string;
+  message: string;
+};
+
+export type ExceptionLogEntry = {
+  kind: 'exception';
+  message: string;
+};
+
+export type LogEntry = DebugLogEntry | ExceptionLogEntry;
+
+export const parseLogEntries = (body: string): LogEntry[] => {
+  const entries: LogEntry[] = [];
 
   for (const line of body.split('\n')) {
     if (line.includes('|USER_DEBUG|')) {
       const parts = line.split('|');
 
       if (parts.length >= 5) {
-        const lineNum = parts[2];
-        const level = parts[3];
-        const message = parts.slice(4).join('|');
-
-        if (filter == null || message.includes(filter)) {
-          result.push(`  ${chalk.dim(lineNum.padEnd(5))} ${formatLevel(level)}  ${message}`);
-        }
+        entries.push({
+          kind: 'debug',
+          line: Number(parts[2].slice(1, -1)),
+          level: parts[3],
+          message: parts.slice(4).join('|'),
+        });
       }
     } else if (line.includes('|EXCEPTION_THROWN|') || line.includes('|FATAL_ERROR|')) {
-      const parts = line.split('|');
-      result.push(chalk.red(`  ⚠  ${parts.slice(2).join('|')}`));
+      entries.push({ kind: 'exception', message: line.split('|').slice(2).join('|') });
     }
   }
 
-  return result;
+  return entries;
 };
+
+/**
+ * Formats one entry for the terminal. Exceptions are always shown; the filter
+ * only applies to debug messages.
+ */
+export const formatLogEntry = (entry: LogEntry): string =>
+  entry.kind === 'debug'
+    ? `  ${chalk.dim(`[${entry.line}]`.padEnd(5))} ${formatLevel(entry.level)}  ${entry.message}`
+    : chalk.red(`  ⚠  ${entry.message}`);
+
+export const parseLogLines = (body: string, filter?: string): string[] =>
+  parseLogEntries(body)
+    .filter((entry) => filter == null || entry.kind === 'exception' || entry.message.includes(filter))
+    .map(formatLogEntry);
 
 export const formatLevel = (level: string): string => {
   const padded = level.padEnd(7);
