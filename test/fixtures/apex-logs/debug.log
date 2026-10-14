@@ -1,0 +1,27 @@
+68.0 APEX_CODE,DEBUG;APEX_PROFILING,INFO
+Execute Anonymous: static Integer f() { return 1; }
+Execute Anonymous: System.debug('raven ' + f() + ' ' + [SELECT COUNT() FROM User]);
+12:12:43.25 (25888146)|USER_INFO|[EXTERNAL]|005000000000000|user@example.com|(GMT+01:00) British Summer Time (Europe/London)|GMT+01:00
+12:12:43.25 (25919906)|EXECUTION_STARTED
+12:12:43.25 (25973567)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+12:12:43.25 (34727127)|USER_DEBUG|[2]|DEBUG|raven 1 6
+12:12:43.34 (34809218)|CUMULATIVE_LIMIT_USAGE
+12:12:43.34 (34809218)|LIMIT_USAGE_FOR_NS|(default)|
+  Number of SOQL queries: 1 out of 100
+  Number of query rows: 1 out of 50000
+  Number of SOSL queries: 0 out of 20
+  Number of DML statements: 0 out of 150
+  Number of Publish Immediate DML: 0 out of 150
+  Number of DML rows: 0 out of 10000
+  Maximum CPU time: 0 out of 10000
+  Maximum heap size: 0 out of 10000000
+  Number of callouts: 0 out of 100
+  Number of Email Invocations: 0 out of 10
+  Number of future calls: 0 out of 50
+  Number of queueable jobs added to the queue: 0 out of 50
+  Number of Mobile Apex push calls: 0 out of 10
+
+12:12:43.34 (34809218)|CUMULATIVE_LIMIT_USAGE_END
+
+12:12:43.25 (34912759)|CODE_UNIT_FINISHED|execute_anonymous_apex
+12:12:43.25 (34923519)|EXECUTION_FINISHED
