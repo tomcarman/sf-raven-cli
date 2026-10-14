@@ -1,0 +1,31 @@
+68.0 APEX_CODE,FINE;APEX_PROFILING,INFO;CALLOUT,INFO;DB,INFO;SYSTEM,DEBUG;VALIDATION,INFO;WORKFLOW,INFO
+Execute Anonymous: static Integer f() { return 1; }
+Execute Anonymous: System.debug('raven ' + f() + ' ' + [SELECT COUNT() FROM User]);
+12:12:50.29 (29405161)|USER_INFO|[EXTERNAL]|005000000000000|user@example.com|(GMT+01:00) British Summer Time (Europe/London)|GMT+01:00
+12:12:50.29 (29428761)|EXECUTION_STARTED
+12:12:50.29 (29434341)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+12:12:50.29 (29941840)|SYSTEM_MODE_ENTER|false
+12:12:50.29 (29996020)|SYSTEM_MODE_EXIT|false
+12:12:50.29 (31637677)|SOQL_EXECUTE_BEGIN|[2]|Aggregations:0|SELECT COUNT() FROM User
+12:12:50.29 (34895631)|SOQL_EXECUTE_END|[2]|Rows:6
+12:12:50.29 (35029643)|USER_DEBUG|[2]|DEBUG|raven 1 6
+12:12:50.35 (35107664)|CUMULATIVE_LIMIT_USAGE
+12:12:50.35 (35107664)|LIMIT_USAGE_FOR_NS|(default)|
+  Number of SOQL queries: 1 out of 100
+  Number of query rows: 1 out of 50000
+  Number of SOSL queries: 0 out of 20
+  Number of DML statements: 0 out of 150
+  Number of Publish Immediate DML: 0 out of 150
+  Number of DML rows: 0 out of 10000
+  Maximum CPU time: 0 out of 10000
+  Maximum heap size: 0 out of 10000000
+  Number of callouts: 0 out of 100
+  Number of Email Invocations: 0 out of 10
+  Number of future calls: 0 out of 50
+  Number of queueable jobs added to the queue: 0 out of 50
+  Number of Mobile Apex push calls: 0 out of 10
+
+12:12:50.35 (35107664)|CUMULATIVE_LIMIT_USAGE_END
+
+12:12:50.29 (35157955)|CODE_UNIT_FINISHED|execute_anonymous_apex
+12:12:50.29 (35162685)|EXECUTION_FINISHED

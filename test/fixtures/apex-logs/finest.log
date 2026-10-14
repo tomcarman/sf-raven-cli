@@ -1,0 +1,104 @@
+68.0 APEX_CODE,FINEST;APEX_PROFILING,FINEST;CALLOUT,INFO;DB,FINEST;SYSTEM,FINEST;VALIDATION,INFO;WORKFLOW,INFO
+Execute Anonymous: static Integer f() { return 1; }
+Execute Anonymous: System.debug('raven ' + f() + ' ' + [SELECT COUNT() FROM User]);
+12:12:56.30 (30343257)|USER_INFO|[EXTERNAL]|005000000000000|user@example.com|(GMT+01:00) British Summer Time (Europe/London)|GMT+01:00
+12:12:56.30 (30360897)|EXECUTION_STARTED
+12:12:56.30 (30368757)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+12:12:56.30 (30615651)|HEAP_ALLOCATE|[95]|Bytes:3
+12:12:56.30 (30676101)|HEAP_ALLOCATE|[100]|Bytes:152
+12:12:56.30 (30688202)|HEAP_ALLOCATE|[417]|Bytes:408
+12:12:56.30 (30696662)|HEAP_ALLOCATE|[430]|Bytes:408
+12:12:56.30 (30715222)|HEAP_ALLOCATE|[317]|Bytes:6
+12:12:56.30 (30752622)|HEAP_ALLOCATE|[EXTERNAL]|Bytes:1
+12:12:56.30 (30768333)|HEAP_ALLOCATE|[EXTERNAL]|Bytes:1
+12:12:56.30 (30851214)|STATEMENT_EXECUTE|[1]
+12:12:56.30 (30857834)|STATEMENT_EXECUTE|[2]
+12:12:56.30 (30859774)|HEAP_ALLOCATE|[2]|Bytes:6
+12:12:56.30 (30913415)|HEAP_ALLOCATE|[68]|Bytes:5
+12:12:56.30 (30953685)|HEAP_ALLOCATE|[74]|Bytes:5
+12:12:56.30 (30959325)|HEAP_ALLOCATE|[82]|Bytes:7
+12:12:56.30 (30983716)|SYSTEM_MODE_ENTER|false
+12:12:56.30 (31007166)|HEAP_ALLOCATE|[2]|Bytes:5
+12:12:56.30 (31024126)|HEAP_ALLOCATE|[1]|Bytes:5
+12:12:56.30 (31026756)|STATEMENT_EXECUTE|[1]
+12:12:56.30 (31028006)|STATEMENT_EXECUTE|[1]
+12:12:56.30 (31031256)|HEAP_ALLOCATE|[1]|Bytes:4
+12:12:56.30 (31036037)|HEAP_ALLOCATE|[2]|Bytes:4
+12:12:56.30 (31039397)|SYSTEM_MODE_EXIT|false
+12:12:56.30 (31115788)|SYSTEM_METHOD_ENTRY|[2]|String.valueOf(Object)
+12:12:56.30 (31139838)|HEAP_ALLOCATE|[2]|Bytes:1
+12:12:56.30 (31153758)|SYSTEM_METHOD_EXIT|[2]|String.valueOf(Object)
+12:12:56.30 (31157168)|HEAP_ALLOCATE|[2]|Bytes:1
+12:12:56.30 (31158918)|HEAP_ALLOCATE|[2]|Bytes:24
+12:12:56.30 (31176779)|HEAP_ALLOCATE|[2]|Bytes:4
+12:12:56.30 (32485777)|SOQL_EXECUTE_BEGIN|[2]|Aggregations:0|SELECT COUNT() FROM User
+12:12:56.30 (32510048)|LIMIT_USAGE|[2]|SOQL|1|100
+12:12:56.30 (32519498)|LIMIT_USAGE|[2]|AGGS|0|300
+12:12:56.30 (39850093)|SOQL_EXECUTE_EXPLAIN|[2]|TableScan on User : [], cardinality: 7, sobjectCardinality: 7, relativeCost 1.85
+12:12:56.30 (39869343)|LIMIT_USAGE|[2]|SOQL_ROWS|1|50000
+12:12:56.30 (39886904)|SOQL_EXECUTE_END|[2]|Rows:6
+12:12:56.30 (39913764)|HEAP_ALLOCATE|[2]|Bytes:4
+12:12:56.30 (39956205)|SYSTEM_METHOD_ENTRY|[2]|String.valueOf(Object)
+12:12:56.30 (39962585)|HEAP_ALLOCATE|[2]|Bytes:1
+12:12:56.30 (39974115)|SYSTEM_METHOD_EXIT|[2]|String.valueOf(Object)
+12:12:56.30 (39985775)|HEAP_ALLOCATE|[2]|Bytes:9
+12:12:56.30 (40041266)|SYSTEM_METHOD_ENTRY|[2]|System.debug(ANY)
+12:12:56.30 (40051266)|USER_DEBUG|[2]|DEBUG|raven 1 6
+12:12:56.30 (40056316)|SYSTEM_METHOD_EXIT|[2]|System.debug(ANY)
+12:12:56.40 (40131627)|CUMULATIVE_LIMIT_USAGE
+12:12:56.40 (40131627)|LIMIT_USAGE_FOR_NS|(default)|
+  Number of SOQL queries: 1 out of 100
+  Number of query rows: 1 out of 50000
+  Number of SOSL queries: 0 out of 20
+  Number of DML statements: 0 out of 150
+  Number of Publish Immediate DML: 0 out of 150
+  Number of DML rows: 0 out of 10000
+  Maximum CPU time: 0 out of 10000
+  Maximum heap size: 0 out of 10000000
+  Number of callouts: 0 out of 100
+  Number of Email Invocations: 0 out of 10
+  Number of future calls: 0 out of 50
+  Number of queueable jobs added to the queue: 0 out of 50
+  Number of Mobile Apex push calls: 0 out of 10
+
+12:12:56.40 (40131627)|TOTAL_EMAIL_RECIPIENTS_QUEUED|0
+12:12:56.40 (40131627)|STATIC_VARIABLE_LIST|
+  int:BYTES:0
+  int:BYTES:0
+  byte[]:DigitOnes:0
+  byte[]:DigitTens:0
+  Boolean:FALSE:0
+  int:MAX_EXPONENT:0
+  double:MAX_VALUE:0
+  int:MAX_VALUE:0
+  int:MIN_EXPONENT:0
+  double:MIN_NORMAL:0
+  double:MIN_VALUE:0
+  int:MIN_VALUE:0
+  double:NEGATIVE_INFINITY:0
+  double:NaN:0
+  double:POSITIVE_INFINITY:0
+  int:PRECISION:0
+  int:SIZE:0
+  int:SIZE:0
+  Boolean:TRUE:0
+  String:_sfdcAdditionalCodeLocations:0
+  String:_sfdcSuppressedCodeLocations:0
+  char[]:digits:0
+  long:serialVersionUID:0
+  long:serialVersionUID:0
+  long:serialVersionUID:0
+
+12:12:56.40 (40131627)|CUMULATIVE_LIMIT_USAGE_END
+
+12:12:56.30 (45134649)|CODE_UNIT_FINISHED|execute_anonymous_apex
+12:12:56.30 (45145929)|EXECUTION_FINISHED
+12:12:56.46 (46845993)|CUMULATIVE_PROFILING_BEGIN
+12:12:56.46 (46845993)|CUMULATIVE_PROFILING|No profiling information for SOQL operations
+12:12:56.46 (46845993)|CUMULATIVE_PROFILING|No profiling information for SOSL operations
+12:12:56.46 (46845993)|CUMULATIVE_PROFILING|No profiling information for DML operations
+12:12:56.46 (46845993)|CUMULATIVE_PROFILING|method invocations|
+External entry point: public static void execute(): executed 1 time in 9 ms
+AnonymousBlock: line 2, column 1: public static String valueOf(Object): executed 4 times in 9 ms
+
+12:12:56.46 (46845993)|CUMULATIVE_PROFILING_END

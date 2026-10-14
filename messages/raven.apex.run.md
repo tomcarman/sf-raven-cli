@@ -36,6 +36,10 @@ Stream machine-readable results from a watch loop:
 
 <%= config.bin %> <%= command.id %> --watch --ndjson
 
+Log SOQL, DML and method entry and exit as well as debug lines:
+
+<%= config.bin %> <%= command.id %> --log-detail fine
+
 Keep one process running and send it runs on stdin, one JSON line each:
 
 echo '{"id": "1", "code": "System.debug(1);"}' | <%= config.bin %> <%= command.id %> --stdin --ndjson
@@ -66,7 +70,11 @@ Stream machine-readable NDJSON events, one JSON object per line, instead of form
 
 # flags.stdin.summary
 
-Read run requests from stdin, one JSON line each ({"id": "...", "code": "..."}), and run them one at a time until stdin closes. Nothing runs at startup. Requires --ndjson. Cannot be combined with --file, --watch or --json.
+Read run requests from stdin, one JSON line each ({"id": "...", "code": "...", "logDetail": "fine"}, logDetail optional), and run them one at a time until stdin closes. Nothing runs at startup. Requires --ndjson. Cannot be combined with --file, --watch or --json.
+
+# flags.log-detail.summary
+
+How much the debug log records. debug logs debug lines and limits only. fine adds SOQL, DML and method entry and exit. finest logs everything, including variable assignments and statements. In --stdin mode a request's "logDetail" field overrides this flag.
 
 # info.executing
 

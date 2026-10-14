@@ -19,6 +19,12 @@ import {
   type ApexRunResult,
   type ApexRunStreamEvent,
 } from '../../../shared/apexRun.js';
+import {
+  APEX_LOG_DETAILS,
+  DEFAULT_APEX_LOG_DETAIL,
+  executeAnonymousAtDetail,
+  type ApexLogDetail,
+} from '../../../shared/apexLogDetail.js';
 import { serveApexStdin, type ApexStdinEvent } from '../../../shared/apexRunStdin.js';
 import { createRunScheduler } from '../../../shared/runScheduler.js';
 
@@ -65,6 +71,11 @@ export default class RavenApexRun extends SfCommand<RavenApexRunResult> {
       summary: messages.getMessage('flags.stdin.summary'),
       default: false,
     }),
+    'log-detail': Flags.option({
+      summary: messages.getMessage('flags.log-detail.summary'),
+      options: APEX_LOG_DETAILS,
+      default: DEFAULT_APEX_LOG_DETAIL,
+    })(),
   };
 
   public async run(): Promise<RavenApexRunResult> {
@@ -93,7 +104,7 @@ export default class RavenApexRun extends SfCommand<RavenApexRunResult> {
     }
 
     if (flags.stdin) {
-      return serveStdin(org.getConnection(), flags.filter);
+      return serveStdin(org.getConnection(), flags.filter, flags['log-detail']);
     }
 
     const filePath = resolve(flags.file);
@@ -102,7 +113,7 @@ export default class RavenApexRun extends SfCommand<RavenApexRunResult> {
     // path, before watch mode commits to a long-running loop.
     const apexCode = await this.readApexFile(filePath, usingDefaultFile, ux);
     const connection = org.getConnection();
-    const options: RunOptions = { raw: flags.raw, filter: flags.filter, ndjson };
+    const options: RunOptions = { raw: flags.raw, filter: flags.filter, ndjson, logDetail: flags['log-detail'] };
 
     if (flags.watch) {
       await watchAndRun(connection, filePath, apexCode, options, ux);
@@ -155,6 +166,7 @@ type RunOptions = {
   raw: boolean;
   filter: string | undefined;
   ndjson: boolean;
+  logDetail: ApexLogDetail;
 };
 
 type ApexExecution = {
@@ -172,11 +184,13 @@ const writeEventLine = (event: ApexRunStreamEvent | ApexStdinEvent): void => {
 const executeApex = async (
   connection: Connection,
   apexCode: string,
-  filter: string | undefined
+  filter: string | undefined,
+  logDetail: ApexLogDetail
 ): Promise<ApexExecution> => {
-  const service = new ExecuteService(connection);
   const startedAt = Date.now();
-  const response = await service.executeAnonymous({ apexCode });
+  const response = await executeAnonymousAtDetail(connection, apexCode, logDetail, (code) =>
+    new ExecuteService(connection).executeAnonymous({ apexCode: code })
+  );
   const duration = Date.now() - startedAt;
 
   return { result: buildApexRunResult(response, duration, filter), logs: response.logs ?? '' };
@@ -193,7 +207,7 @@ const runOnce = async (
   let execution: ApexExecution;
 
   try {
-    execution = await executeApex(connection, apexCode, options.filter);
+    execution = await executeApex(connection, apexCode, options.filter, options.logDetail);
   } finally {
     ux.spinner.stop();
   }
@@ -214,12 +228,19 @@ const runOnce = async (
  * Serves runs from stdin until it closes, then exits 0 once the output is flushed. The process
  * stays up between runs, so callers skip the CLI's startup cost on every run after the first.
  */
-const serveStdin = async (connection: Connection, filter: string | undefined): Promise<never> => {
+const serveStdin = async (
+  connection: Connection,
+  filter: string | undefined,
+  logDetail: ApexLogDetail
+): Promise<never> => {
   const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
 
   await serveApexStdin({
     lines,
-    execute: async (code) => (await executeApex(connection, code, filter)).result,
+    execute: async (code, requestLogDetail) =>
+      (
+        await executeApex(connection, code, filter, requestLogDetail ?? logDetail)
+      ).result,
     write: writeEventLine,
   });
 

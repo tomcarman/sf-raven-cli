@@ -1,9 +1,11 @@
+import { APEX_LOG_DETAILS, isApexLogDetail, type ApexLogDetail } from './apexLogDetail.js';
 import type { ApexRunResult } from './apexRun.js';
 
-/** One line of `apex run --stdin` input. */
+/** One line of `apex run --stdin` input. `logDetail` overrides the `--log-detail` flag. */
 export type ApexStdinRunRequest = {
   id: string;
   code: string;
+  logDetail?: ApexLogDetail;
 };
 
 export type ApexStdinReadyEvent = { type: 'ready' };
@@ -17,9 +19,13 @@ export type ApexStdinErrorEvent = { type: 'error'; id?: string; message: string 
 
 export type ApexStdinEvent = ApexStdinReadyEvent | ApexStdinRunStartEvent | ApexStdinRunEvent | ApexStdinErrorEvent;
 
-const INVALID_LINE = 'Expected one JSON object per line: {"id": "<string>", "code": "<apex>"}';
+const INVALID_LINE =
+  'Expected one JSON object per line: {"id": "<string>", "code": "<apex>", "logDetail"?: "debug" | "fine" | "finest"}';
 
-export const parseApexStdinRunRequest = (line: string): ApexStdinRunRequest | { error: string } => {
+/** A line that is not a run request; `id` is set when the line named one. */
+export type ApexStdinParseError = { error: string; id?: string };
+
+export const parseApexStdinRunRequest = (line: string): ApexStdinRunRequest | ApexStdinParseError => {
   let value: unknown;
 
   try {
@@ -32,19 +38,31 @@ export const parseApexStdinRunRequest = (line: string): ApexStdinRunRequest | { 
     return { error: INVALID_LINE };
   }
 
-  const { id, code } = value as Record<string, unknown>;
+  const { id, code, logDetail } = value as Record<string, unknown>;
 
   if (typeof id !== 'string' || id === '' || typeof code !== 'string') {
     return { error: INVALID_LINE };
   }
 
-  return { id, code };
+  if (logDetail === undefined) {
+    return { id, code };
+  }
+
+  if (!isApexLogDetail(logDetail)) {
+    return {
+      id,
+      error: `Invalid logDetail ${JSON.stringify(logDetail)}. Expected one of: ${APEX_LOG_DETAILS.join(', ')}.`,
+    };
+  }
+
+  return { id, code, logDetail };
 };
 
 export type ServeApexStdinOptions = {
   /** Input lines, such as stdin read through readline. */
   lines: AsyncIterable<string>;
-  execute: (code: string) => Promise<ApexRunResult>;
+  /** Runs one request; `logDetail` is the request's own, when it gave one. */
+  execute: (code: string, logDetail: ApexLogDetail | undefined) => Promise<ApexRunResult>;
   write: (event: ApexStdinEvent) => void;
 };
 
@@ -60,7 +78,11 @@ export const serveApexStdin = async ({ lines, execute, write }: ServeApexStdinOp
     const request = parseApexStdinRunRequest(line);
 
     if ('error' in request) {
-      write({ type: 'error', message: request.error });
+      write(
+        request.id == null
+          ? { type: 'error', message: request.error }
+          : { type: 'error', id: request.id, message: request.error }
+      );
       continue;
     }
 
@@ -69,7 +91,7 @@ export const serveApexStdin = async ({ lines, execute, write }: ServeApexStdinOp
     try {
       // Runs are one at a time by design: the next line is not read until this one finishes.
       // eslint-disable-next-line no-await-in-loop
-      const result = await execute(request.code);
+      const result = await execute(request.code, request.logDetail);
       write({ type: 'run', id: request.id, ...result });
     } catch (error) {
       write({ type: 'error', id: request.id, message: error instanceof Error ? error.message : String(error) });
