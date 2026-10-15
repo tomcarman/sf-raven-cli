@@ -30,7 +30,7 @@ Full details, usage, examples etc are further down, or can be accessed via `--he
 - **[sf raven inspect field](#sf-raven-inspect-field)** - _Find everywhere a field is referenced across the org's metadata._
 - **[sf raven inspect jobs](#sf-raven-inspect-jobs)** - _Show async and scheduled jobs running in an org._
 - **[sf raven audit display](#sf-raven-audit-display)** - _Show recent entries in the Setup Audit Trail._
-- **[sf raven event subscribe](#sf-raven-event-subscribe)** - _Subscribe to Platform Events, streamed to your terminal._
+- **[sf raven event subscribe](#sf-raven-event-subscribe)** - _Subscribe to Platform Events and Change Data Capture events, streamed to your terminal or as NDJSON._
 - **[sf raven event publish](#sf-raven-event-publish)** - _Publish Platform Events from an inline payload or a JSON file._
 - **[sf raven deploy cancel](#sf-raven-deploy-cancel)** - _Query an org for pending or in progress Salesforce deployments, and cancel them._
 - **[sf raven soql](#sf-raven-soql)** - _Run SOQL queries in an interactive REPL - tab completion, syntax highlighting, history search - or one-shot from the shell._
@@ -1114,36 +1114,57 @@ Date                Username      Type         Action                           
 
 <details><summary>👀 Click to see</summary><br/><img src="media/demos/raven-event-subscribe.gif" alt="sf raven event subscribe demo"/></details>
 
-Subscribe to Platform Events.
+Subscribe to Platform Events and Change Data Capture events.
 
-Platform Events are printed to the terminal. An optional flag can be used to replay events from a given replay id. Default timeout is 3 minutes, but can be extended to 30 minutes.
+Events are printed to the terminal. An optional flag can be used to replay events from a given replay id. Default timeout is 3 minutes, but can be extended to 30 minutes.
+
+* `--event` takes a Platform Event (`My_Event__e` or `/event/My_Event__e`) or a change event (`AccountChangeEvent` or `/data/AccountChangeEvent`). A name ending in `ChangeEvent` is subscribed on `/data/`, any other bare name on `/event/`, and a name starting with `/` is used as the channel as is
+* `--replayid -1` gets new events only, `--replayid -2` replays all retained events
+* `--ndjson` streams machine-readable events, one JSON object per line, and nothing else on stdout: `{"type": "event", "channel", "replayId", "receivedAt", "payload"}` per event (`payload` as delivered, including `ChangeEventHeader` for change events), `{"type": "status", "event": "connected" | "timeout"}` and `{"type": "error", "message"}`. There is no timeout unless `--timeout` is given, and the 30 minute maximum does not apply. Ctrl+C exits cleanly. Cannot be combined with `--json`
 
 ```
 USAGE
-  $ sf raven event subscribe -o <value> -e <value> [--json] [-r <value>] [-t <value>]
+  $ sf raven event subscribe -o <value> -e <value> [--json] [-r <value>] [-t <value>] [--ndjson]
 
 FLAGS
-  -e, --event=<value>       (required) The name of the Platform Event that you want to subscribe with '/event/' prefix eg. /event/My_Event__e.
+  -e, --event=<value>       (required) The event to subscribe to, eg. My_Event__e, /event/My_Event__e, AccountChangeEvent
+                            or /data/AccountChangeEvent.
   -o, --target-org=<value>  (required) Login username or alias for the target org.
-  -r, --replayid=<value>    The replay id to replay events from eg. 21980378.
-  -t, --timeout=<value>     [default: 3] How long to subscribe for before timing out in minutes eg. 10. Default is 3 minutes.
+  -r, --replayid=<value>    The replay id to replay events from eg. 21980378. Use -1 for new events only, or -2 for all
+                            retained events.
+  -t, --timeout=<value>     How long to subscribe for before timing out in minutes eg. 10. Default is 3 minutes, maximum
+                            30 (minimum 3). With --ndjson there is no timeout unless one is given, and no maximum.
+      --ndjson              Stream machine-readable NDJSON events, one JSON object per line, with no spinner or other
+                            output on stdout. Cannot be combined with --json.
 
 GLOBAL FLAGS
   --json  Format output as json.
 
 DESCRIPTION
-  Subscribe to Platform Events.
+  Subscribe to Platform Events and Change Data Capture events.
 
-  Platform Events are printed to the terminal. An optional flag can be used to replay events from a given replay id. Default timeout is 3 minutes, but can be extended to 30 minutes.
+  Events are printed to the terminal. An optional flag can be used to replay events from a given replay id. Default
+  timeout is 3 minutes, but can be extended to 30 minutes.
+
+  --event takes a Platform Event name (My_Event__e or /event/My_Event__e) or a change event name (AccountChangeEvent or
+  /data/AccountChangeEvent). A name ending in ChangeEvent is subscribed on /data/; any other bare name on /event/. A
+  name starting with / is used as the channel as is.
+
+  With --ndjson, each message is written to stdout as one JSON object per line, and nothing else is: {"type": "event",
+  "channel", "replayId", "receivedAt", "payload"} for each event, {"type": "status", "event": "connected" | "timeout"},
+  and {"type": "error", "message"}. In this mode there is no timeout unless --timeout is given, and the 30 minute
+  maximum does not apply.
 
 EXAMPLES
   $ sf raven event subscribe --target-org dev --event /event/My_Event__e
 
-  $ sf raven event subscribe --target-org dev --event /event/My_Event__e --replayid 21980378
+  $ sf raven event subscribe --target-org dev --event My_Event__e --replayid 21980378
 
-  $ sf raven event subscribe --target-org dev --event /event/My_Event__e --timeout 10
+  $ sf raven event subscribe --target-org dev --event AccountChangeEvent --timeout 10
 
-  $ sf raven event subscribe --target-org dev --event /event/My_Event__e --replayid 21980378 --timeout 10
+  $ sf raven event subscribe --target-org dev --event /event/My_Event__e --replayid -2 --timeout 10
+
+  $ sf raven event subscribe --target-org dev --event AccountChangeEvent --ndjson
 
 
 OUTPUT
@@ -1161,6 +1182,13 @@ OUTPUT
     "replayId": 21980379
   }
 }
+```
+
+NDJSON output (`--ndjson`):
+
+```
+{"type":"status","event":"connected"}
+{"type":"event","channel":"/data/AccountChangeEvent","replayId":4518,"receivedAt":"2026-10-15T09:30:00.000Z","payload":{"ChangeEventHeader":{"entityName":"Account","changeType":"UPDATE","recordIds":["001xx000003DGb2AAG"],"changedFields":["Name"]},"Name":"Acme"}}
 ```
 
 ### sf raven event publish
