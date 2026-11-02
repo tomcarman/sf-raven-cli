@@ -1,42 +1,19 @@
 import chalk from 'chalk';
 import { Messages } from '@salesforce/core';
 import { Flags, SfCommand, Ux } from '@salesforce/sf-plugins-core';
+import {
+  buildAutomationRows,
+  type ApexTriggerRecord,
+  type AutomationRow,
+  type FlowRecord,
+  type FlowWithOrder,
+  type WorkflowRuleRecord,
+} from '../../../shared/inspectAutomations.js';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('sf-raven-cli', 'raven.inspect.automations');
 
-type ApexTriggerRecord = {
-  Name: string;
-  Status: string;
-  UsageBeforeInsert: boolean;
-  UsageAfterInsert: boolean;
-  UsageBeforeUpdate: boolean;
-  UsageAfterUpdate: boolean;
-  UsageBeforeDelete: boolean;
-  UsageAfterDelete: boolean;
-  UsageAfterUndelete: boolean;
-};
-
-type FlowRecord = {
-  Label: string;
-  ApiName: string;
-  TriggerType: string;
-  RecordTriggerType: string;
-  ProcessType: string;
-  IsActive: boolean;
-  ActiveVersionId: string | null;
-  LatestVersionId: string | null;
-};
-
-type FlowWithOrder = FlowRecord & { TriggerOrder?: number };
-
 type FlowMetadata = { triggerOrder?: number | null };
-
-type WorkflowRuleRecord = {
-  Name: string;
-  TriggerType: string;
-  Active: boolean;
-};
 
 type WorkflowRuleListRecord = { Id: string; Name: string };
 type WorkflowRuleMetadata = { active?: boolean; triggerType?: string };
@@ -45,16 +22,6 @@ type ToolingConnection = {
   tooling: {
     query: <T>(soql: string) => Promise<{ records: T[] }>;
   };
-};
-
-type AutomationRow = {
-  phase: string;
-  phaseOrder: number;
-  type: string;
-  name: string;
-  events: string;
-  active: boolean;
-  triggerOrder?: number;
 };
 
 export type RavenInspectAutomationsResult = {
@@ -175,16 +142,7 @@ export default class RavenInspectAutomations extends SfCommand<RavenInspectAutom
       this.spinner.stop();
     }
 
-    const rows: AutomationRow[] = [
-      ...triggers.flatMap(triggerToRows),
-      ...flows.map(flowToRow),
-      ...workflowRules.map(workflowToRow),
-    ].sort(
-      (a, b) =>
-        a.phaseOrder - b.phaseOrder ||
-        compareTriggerOrder(a.triggerOrder, b.triggerOrder) ||
-        a.name.localeCompare(b.name)
-    );
+    const rows = buildAutomationRows({ triggers, flows, workflowRules });
 
     const activeCount = rows.filter((r) => r.active).length;
     const inactiveCount = rows.filter((r) => !r.active).length;
@@ -210,120 +168,6 @@ export default class RavenInspectAutomations extends SfCommand<RavenInspectAutom
     return { sobject, automations: rows };
   }
 }
-
-const triggerToRows = (trigger: ApexTriggerRecord): AutomationRow[] => {
-  const active = trigger.Status === 'Active';
-  const rows: AutomationRow[] = [];
-
-  const beforeEvents: string[] = [];
-  if (trigger.UsageBeforeInsert) beforeEvents.push('Insert');
-  if (trigger.UsageBeforeUpdate) beforeEvents.push('Update');
-  if (trigger.UsageBeforeDelete) beforeEvents.push('Delete');
-
-  const afterEvents: string[] = [];
-  if (trigger.UsageAfterInsert) afterEvents.push('Insert');
-  if (trigger.UsageAfterUpdate) afterEvents.push('Update');
-  if (trigger.UsageAfterDelete) afterEvents.push('Delete');
-  if (trigger.UsageAfterUndelete) afterEvents.push('Undelete');
-
-  if (beforeEvents.length > 0) {
-    rows.push({
-      phase: 'Before Trigger',
-      phaseOrder: 2,
-      type: 'Apex Trigger',
-      name: trigger.Name,
-      events: beforeEvents.join(', '),
-      active,
-    });
-  }
-
-  if (afterEvents.length > 0) {
-    rows.push({
-      phase: 'After Trigger',
-      phaseOrder: 3,
-      type: 'Apex Trigger',
-      name: trigger.Name,
-      events: afterEvents.join(', '),
-      active,
-    });
-  }
-
-  return rows;
-};
-
-const flowToRow = (flow: FlowWithOrder): AutomationRow => {
-  const isProcessBuilder = flow.ProcessType === 'Workflow';
-  const isBeforeSave = flow.TriggerType === 'RecordBeforeSave';
-
-  if (isProcessBuilder) {
-    return {
-      phase: 'Post-Save',
-      phaseOrder: 6,
-      type: 'Process Builder',
-      name: flow.Label,
-      events: formatFlowTriggerType(flow.RecordTriggerType),
-      active: flow.IsActive,
-    };
-  }
-
-  return {
-    phase: isBeforeSave ? 'Before Save' : 'After Save',
-    phaseOrder: isBeforeSave ? 1 : 4,
-    type: 'Flow',
-    name: flow.Label,
-    events: formatFlowTriggerType(flow.RecordTriggerType),
-    active: flow.IsActive,
-    triggerOrder: flow.TriggerOrder,
-  };
-};
-
-// Flows with an explicit Trigger Order run first, in ascending order; those without run
-// afterwards in an undefined sequence.
-const compareTriggerOrder = (a?: number, b?: number): number => {
-  if (a == null && b == null) return 0;
-  if (a == null) return 1;
-  if (b == null) return -1;
-  return a - b;
-};
-
-const workflowToRow = (rule: WorkflowRuleRecord): AutomationRow => ({
-  phase: 'Post-Save',
-  phaseOrder: 5,
-  type: 'Workflow Rule',
-  name: rule.Name,
-  events: formatWorkflowTriggerType(rule.TriggerType),
-  active: rule.Active,
-});
-
-const formatFlowTriggerType = (recordTriggerType: string): string => {
-  switch (recordTriggerType) {
-    case 'Create':
-      return 'Insert';
-    case 'Update':
-      return 'Update';
-    case 'CreateAndUpdate':
-      return 'Insert, Update';
-    case 'Delete':
-      return 'Delete';
-    default:
-      return recordTriggerType ?? '';
-  }
-};
-
-const formatWorkflowTriggerType = (triggerType: string): string => {
-  switch (triggerType) {
-    case 'onCreateOnly':
-      return 'Insert';
-    case 'onCreateOrTriggeringUpdate':
-      return 'Insert, Update';
-    case 'onAllChanges':
-      return 'Insert, Update, Undelete';
-    case 'onOpportunityClose':
-      return 'Close';
-    default:
-      return triggerType ?? '';
-  }
-};
 
 const cell = (row: AutomationRow, value: string): string => (row.active ? value : chalk.dim(value));
 
